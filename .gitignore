@@ -1,6 +1,7 @@
 .session
 t/
 env/
+data/
 
 *.py[cod]
 
