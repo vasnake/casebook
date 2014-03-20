@@ -1,0 +1,5 @@
+argparse==1.2.1
+casebook==0.0.1
+requests==2.2.1
+simplejson==3.3.3
+wsgiref==0.1.2
