@@ -77,27 +77,370 @@ OAO «ГАЗПРОМБАНК»
 
 Поисковые запросы и результаты, обзор
 
-Похоже, поиск проводится тремя запросами: suggest, cases, sides
+Похоже, поиск проводится тремя запросами: suggest, cases, sides.
+Запросы выдаются одновременно и отображение начинается после отработки последнего.
+suggest нужен только для подсказок в поле ввода.
+Реально поиск проводится по cases, sides. (http://casebook.ru/api/Search/Cases, http://casebook.ru/api/Search/Sides)
 Выдача результата в браузер идет в зависимости от того, что найдено - если дел не найдено, выводятся стороны.
+
+Результаты выдаются в виде иерархических объектов в виде текста JSON.
+Объекты могут различаться по составу, но часто можно выделить общие свойства.
+Если свойство присутствует, его значение может быть как пустой строкой, так и null, помимо ожидаемого значения.
+
+Соответственно, в качестве результата поиска мы получаем (вынесем разные ошибки за скобки) две коллекции:
+ - список дел (cases)
+ - список сторон (sides)
+
+Каждое дело характеризуется такими основными параметрами:
+    номер
+    дата
+    судья
+    суд
+    разный описательный текст
+    тип дела
+    сумма денег
+    список инстанций (судов)
+    список сторон
+    последнее событие
+    следующее (ожидаемое) событие
+
+Тут (в списках) выделяются связанные сущности: инстанция (суд), сторона (участник), событие
+
+В связи с делом каждая инстанция (суд) характеризуется (основные параметры):
+    название инстанции
+    судья
+    уровень инстанции
+    даты входа-выхода дела
+
+Участник:
+    тип
+    название
+    ИНН, ОГРН, ОКПО
+    адрес
+    ФИО начальника
+    признак физ.лица
+
+Событие:
+    дата
+    описание
+    суть события (список вопросов)
+    тип события
+    ссылка на документ
+    суд
+    судья
+    номер инстанции?
+    заявитель
+
+Итого, можно выделить такие сущности:
+    дело
+    суд (инстанция)
+    судья
+    сторона (участник)
+    физ.лицо (в том числе как сторона и как начальник и как самостоятельное физ.лицо)
+    событие
+    документ
+
+Между собой эти сущности могут быть связаны:
+    дело проходит по разным инстанциям
+    в деле участвуют разные стороны
+    по делу происходят разные события
+    дело рассматривается судьей, в суде
+    в инстанции дело рассматривается судьей, в суде
+    у участника может быть начальник - физ.лицо
+    по событию может быть документ
+    событие назначено в инстанцию, для судьи
+    событие подано заявителем - участником
+
+################################################################################
+
+Поиск дел - POST http://casebook.ru/api/Search/Cases
+
+Тело запроса "payload" передается в виде текста JSON -
+{"StatusEx":[],"SideTypes":[],"ConsiderType":-1,"CourtType":-1,"CaseNumber":null,"CaseCategoryId":"","MonitoredStatus":-1,"Courts":[],"Instances":[],"Judges":[],"Delegate":"","StateOrganizations":[],"DateFrom":null,"DateTo":null,"SessionFrom":null,"SessionTo":null,"FinalDocFrom":null,"FinalDocTo":null,"MinSum":0,"MaxSum":-1,"Sides":[],"CoSides":[],"Accuracy":2,"Page":1,"Count":30,"OrderBy":"incoming_date_ts desc","JudgesNames":[],"Query":"№ А40-51217/2011"}
+В котором главынй параметр поиска - "Query":"№ А40-51217/2011"
+
+Ответ приходит как обьект JSON
+{
+  "Message": "",
+  "ServerDate": "2014-03-21T13:59:41.0008466+04:00",
+  "Success": true,
+  "Timings": [
+    "GetCasesIdsFormSpx 00:00:00.6140000",
+    "GetCasesList.Sql 00:00:00.2880000",
+    "GetCaseBankruptStages 00:00:00.0400000",
+    "GetCasesList.SortAndMerge 00:00:00",
+    "Warnings:"
+  ]
+  "Result": {объект развернут ниже}
+}
+
+В ответе нужно поинтересоваться следующими параметрами:
+resp.Success - if false - error, что значит - сбой авторизации, сервера или еще чего. Сообщение о неприятностях надо брать в
+resp.Message - если все в порядке, то сообщение пустое. Если сообщение есть, то была ошибка или есть предупреждение
+    в любом случае непустого сообщения, данные результата недостоверны.
+resp.Timings - может быть null или массив строк, применяется при отладке и содержит значения задержек или сообщения о обломе отдельных агентов.
+resp.Result - обьект с данными ответа, может быть пустой:
+
+  "Result": {
+    "MaxSum": -1.0,
+    "FoundSideIdByCaseId": {
+      "6a85b808-24f6-4ddb-ae53-60ffde4cbca0": 1878762
+    },
+    "Page": 1,
+    "PageSize": 30,
+    "TotalCount": 1,
+    "PagesCount": 1,
+    "Items": [массив развернут ниже]
+  }
+
+В данных содержится такая информация:
+resp.Result.FoundSideIdByCaseId - словарь (список имя-значение), может быть пустой.
+    Имя это CaseId, идентификатор дела; значение это FakeId в списке сторон Sides.
+    Зачем это нужно - пока не ясно, ибо по каждому делу сторон много, тогда как в этом списке - одна сторона на одно дело.
+resp.Result.TotalCount - число найденных по запросу дел.
+resp.Result.Items - список найденных дел, может быть пустой:
+
+    "Items": [
+      {
+        "CaseId": "6a85b808-24f6-4ddb-ae53-60ffde4cbca0",
+        "FoundInstanceId": "00000000-0000-0000-0000-000000000000",
+        "CaseNumber": "А40-51217/2011",
+        "StartDate": "2011-08-30T00:00:00",
+        "JudgeId": "4ff54bc1-4f40-426a-aa70-63c1fdf5e0a9",
+        "Judge": "Сабирова М. Ф.",
+        "Court": "АС города Москвы",
+        "BankruptStage": "Конкурсное производство",
+        "Status": "Рассматривается в апелляционной, первой, надзорной и кассационной инстанциях",
+        "CaseTypeMCode": "Б",
+        "CaseCategory": "О несостоятельности (банкротстве)",
+        "CaseType": "о несостоятельности (банкротстве) организаций и граждан",
+        "ClaimSum": 16355838800.99,
+        "RecoverySum": 16355838800.99,
+        "Comment": "",
+        "IsMonitored": false,
+        "InFolders": [],
+        "IsFavorite": false,
+        "UpdatesCount": 0,
+        "IsGJ": false,
+        "IsSimpleJustice": false,
+        "Instances": [see explanation later],
+        "Sides": [see explanation later],
+        "LastEvents": [see explanation later],
+        "NextEvent": {see explanation later}
+      }
+    ]
+
+Внутри каждого найденного дела могут быть интересны следующие данные:
+resp.Result.Items[i].CaseId - системный идентификатор дела
+resp.Result.Items[i].CaseNumber - официальный номер дела
+resp.Result.Items[i].StartDate - начальная дата рассмотрения дела? Юристы знают
+resp.Result.Items[i].JudgeId - системный идентификатор судьи
+resp.Result.Items[i].Judge - фамилия И.О. судьи
+resp.Result.Items[i].Court - название суда
+resp.Result.Items[i].BankruptStage - что-то из юр.терминологии про судопроизводство. Пока попадалось только "Конкурсное производство". Юристы знают.
+resp.Result.Items[i].Status - текст про состояние дела?
+resp.Result.Items[i].CaseTypeMCode - понятия не имею, что обозначет литера "Б" - код типа дела?
+resp.Result.Items[i].CaseCategory - название категории дела, (о банкротстве)
+resp.Result.Items[i].CaseType - название типа дела (о несостоятельности ...)
+resp.Result.Items[i].ClaimSum - затребованная сумма в рублях?
+resp.Result.Items[i].RecoverySum - сумма покрытия?
+resp.Result.Items[i].Comment - комментарий? Пока попадался только пустой
+resp.Result.Items[i].Instances - список инстанций (судов) по которым дело проходит. Подробности ниже
+resp.Result.Items[i].Sides - список участвующих сторон, часто длинный. Подробности ниже
+resp.Result.Items[i].LastEvents - список последних событий. Подробности ниже
+resp.Result.Items[i].NextEvent - null или обьект - следующее запланированное событие. Подробности ниже
+
+resp.Result.Items[i].Instances - список инстанций (судов) по которым дело проходит:
+
+        "Instances": [
+          {
+            "Court": "АС города Москвы",
+            "Judge": "Мироненко Э. В.",
+            "CourtTag": "MSK",
+            "InstanceLevel": 1,
+            "FinishState": 0,
+            "FinishDate": "2013-07-15T00:00:00",
+            "IncomingDate": "2013-06-19T00:00:00",
+            "JudgeId": "d615e644-c551-4d91-877e-72a455e81c2f"
+          },
+...
+          {
+            "Court": "ФАС МО",
+            "Judge": "Бусарова Л. В.",
+            "CourtTag": "FASMO",
+            "InstanceLevel": 3,
+            "FinishState": 0,
+            "FinishDate": null,
+            "IncomingDate": "2014-03-06T00:00:00",
+            "JudgeId": "df5a5360-e6f0-452c-b057-65744df02307"
+          }
+        ]
+
+resp.Result.Items[i].Instances[j].Court - название суда
+resp.Result.Items[i].Instances[j].Judge - фамилия И.О. судьи
+resp.Result.Items[i].Instances[j].CourtTag - территориальная принадлежность суда, что-то типа метки
+resp.Result.Items[i].Instances[j].InstanceLevel - уровень инстанции, число
+resp.Result.Items[i].Instances[j].FinishState - пока попадались только нули. Конечная инстанция?
+resp.Result.Items[i].Instances[j].FinishDate - null или дата завершения рассмотрения дела в этой инстанции?
+resp.Result.Items[i].Instances[j].IncomingDate - дата начала рассмотрения дела?
+resp.Result.Items[i].Instances[j].JudgeId - системный идентификатор судьи
+
+resp.Result.Items[i].Sides - список участвующих сторон, часто длинный:
+
+        "Sides": [
+          {
+            "Type": 0,
+            "FakeId": 3587005,
+            "TypeName": "Истец",
+            "OrganizationId": 0,
+            "ShortName": "АНГЛО АЙРИШ БЭНК КОРПОРЭЙШН ЛИМИТЕД",
+            "Name": "АНГЛО АЙРИШ БЭНК КОРПОРЭЙШН ЛИМИТЕД",
+            "IsBranch": false,
+            "IsUnique": false,
+            "IsNotPrecise": false,
+            "Inn": null,
+            "Ogrn": null,
+            "Okpo": null,
+            "Address": "123317, Россия, Москва, Преснеская наб., д. 10 Башня на набережной, Блок В, эт. 17 ЮФ Меджистерс",
+            "Region": null,
+            "OrgForm": null,
+            "HeadFio": null,
+            "StorageId": null,
+            "HidePersonalData": 0,
+            "IsPhysical": false,
+            "IsMonitored": false,
+            "InFolders": null
+          },
+...
+          {
+            "Type": 1,
+            "FakeId": 1878768,
+            "TypeName": "Ответчик",
+            "OrganizationId": 0,
+            "ShortName": "ООО \"Компания \"Финансстройинвестмент\"",
+            "Name": "ООО \"Компания \"Финансстройинвестмент\"",
+            "IsBranch": false,
+            "IsUnique": false,
+            "IsNotPrecise": false,
+            "Inn": "7717532844",
+            "Ogrn": null,
+            "Okpo": null,
+            "Address": "107113, Россия, Москва, Сокольническая пл., д. 4А",
+            "Region": null,
+            "OrgForm": null,
+            "HeadFio": null,
+            "StorageId": null,
+            "HidePersonalData": 0,
+            "IsPhysical": false,
+            "IsMonitored": false,
+            "InFolders": null
+          }
+        ]
+
+resp.Result.Items[i].Sides[j].Type - число, тип стороны (1 - ответчик, 0 - истец, и т.д.)
+resp.Result.Items[i].Sides[j].FakeId - численный псевдо идентификатор стороны, может упоминаться в resp.Result.FoundSideIdByCaseId
+resp.Result.Items[i].Sides[j].TypeName - название типа стороны (ответчик, истец, и т.д.)
+resp.Result.Items[i].Sides[j].OrganizationId - пока попадались только нули
+resp.Result.Items[i].Sides[j].ShortName - краткое название стороны
+resp.Result.Items[i].Sides[j].Name - название стороны
+resp.Result.Items[i].Sides[j].IsBranch - является ли филиалом?
+resp.Result.Items[i].Sides[j].IsUnique - пока попадались только false
+resp.Result.Items[i].Sides[j].IsNotPrecise - пока попадались только false
+resp.Result.Items[i].Sides[j].Inn - ИНН стороны или пустая строка
+resp.Result.Items[i].Sides[j].Ogrn - ОГРН, или null или пустая строка
+resp.Result.Items[i].Sides[j].Okpo - ОКПО, или null или пустая строка
+resp.Result.Items[i].Sides[j].Address - почтовый адрес стороны
+resp.Result.Items[i].Sides[j].Region - название территориального региона
+resp.Result.Items[i].Sides[j].OrgForm - название организационной формы? Почти всегда null
+resp.Result.Items[i].Sides[j].HeadFio - ФИО начальника, почти всегда null
+resp.Result.Items[i].Sides[j].StorageId - пока попадались только null
+resp.Result.Items[i].Sides[j].HidePersonalData - флажок сокрытия персональных данных (0, 1, null)
+resp.Result.Items[i].Sides[j].IsPhysical - является ли сторона физлицом? (true, false)
+resp.Result.Items[i].Sides[j].IsMonitored - пока попадались только false
+resp.Result.Items[i].Sides[j].InFolders - пока попадались только null и [] - пустой список
+
+resp.Result.Items[i].LastEvents - список последних событий:
+
+        "LastEvents": [
+          {
+            "Date": "2014-03-20T00:00:00",
+            "Description": null,
+            "ContentTypes": [
+              "Об ознакомлении с материалами дела (ст. 41 АПК)"
+            ],
+            "DecisionType": "",
+            "DocumentId": "2b23b931-9b0b-4926-8483-240ce0393e00",
+            "Court": "9 ААС",
+            "Judge": null,
+            "JudgeId": "00000000-0000-0000-0000-000000000000",
+            "Declarer": "ООО \"Компания \"Финансстройинвестмент\"",
+            "DeclarerInfo": null,
+            "InstanceNumber": "09АП-7189/2014",
+            "NeedJudges": false,
+            "TypeName": "Ходатайства",
+            "DocumentFileName": null
+          }
+        ]
+
+resp.Result.Items[i].LastEvents[j].Date - дата события
+resp.Result.Items[i].LastEvents[j].Description - описание события
+resp.Result.Items[i].LastEvents[j].ContentTypes - список вопросов, повестка заседания?
+resp.Result.Items[i].LastEvents[j].DecisionType - пока попадались только пустые
+resp.Result.Items[i].LastEvents[j].DocumentId - системный идентификатор документа
+resp.Result.Items[i].LastEvents[j].Court - название суда
+resp.Result.Items[i].LastEvents[j].Judge - фамилия И.О. судьи
+resp.Result.Items[i].LastEvents[j].JudgeId - системный идентификатор судьи
+resp.Result.Items[i].LastEvents[j].Declarer - название заявителя
+resp.Result.Items[i].LastEvents[j].DeclarerInfo - пока попадались только null
+resp.Result.Items[i].LastEvents[j].InstanceNumber - номер инстанции? Больше похоже на номер дела
+resp.Result.Items[i].LastEvents[j].NeedJudges - нужен ли судья? (true, false)
+resp.Result.Items[i].LastEvents[j].TypeName - название типа события
+resp.Result.Items[i].LastEvents[j].DocumentFileName - пока попадались только null
+
+resp.Result.Items[i].NextEvent - null или обьект - следующее запланированное событие:
+
+        "NextEvent": {
+          "Date": "2014-03-24T12:00:00",
+          "Description": "Судебное заседание\n9 ААС, 10 (кабинет 204)",
+          "ContentTypes": null,
+          "DecisionType": null,
+          "DocumentId": "b22e085c-d093-41e7-9680-1ffe19698967",
+          "Court": "9 ААС",
+          "Judge": null,
+          "JudgeId": "00000000-0000-0000-0000-000000000000",
+          "Declarer": null,
+          "DeclarerInfo": null,
+          "InstanceNumber": "09АП-7189/2014",
+          "NeedJudges": false,
+          "TypeName": null,
+          "DocumentFileName": null
+        }
+
+resp.Result.Items[i].NextEvent.Date ... см. описание resp.Result.Items[i].LastEvents[j].Date
+остальные поля тоже идентичны resp.Result.Items[i].LastEvents[j].*
+
+################################################################################
+
+Примеры поисковых запросов
 
 Поиск по делам
 
 {{{
 № А40-51217/2011
-    запрос/ответ в файле
-        data/query.case.%25E2%2584%2596%2520%25D0%259040-51217%252F2011.json
+    запрос/ответ (3) в файле
+        data/query.case01.json
     Отображается в браузере как:
         data/casebook.case01.result01.png
 
 № А65-27211/2011
-    запрос/ответ в файле
-        data/query.case.%E2%84%96%20%D0%9065-27211%2F2011.json
+    запрос/ответ (3, cases - Warnings - datasource timeout) в файле
+        data/query.case02.json
     Отображается в браузере как:
         data/casebook.case02.result01.png
 
 № А40-27010/2012
     запрос/ответ в файле
-        data/query.case.%E2%84%96%20%D0%9040-27010%2F2012.json
+        data/query.case03.json
     Отображается в браузере как:
         data/casebook.case03.result01.png
 }}}
@@ -107,21 +450,21 @@ OAO «ГАЗПРОМБАНК»
 
 {{{
 ОАО «ЛУКОЙЛ-Коми» (ИНН 1106014140 )
-    запрос/ответ в файле
-        data/query.company.%D0%9E%D0%90%D0%9E%20%C2%AB%D0%9B%D0%A3%D0%9A%D0%9E%D0%99%D0%9B-%D0%9A%D0%BE%D0%BC%D0%B8%C2%BB%20(%D0%98%D0%9D%D0%9D%201106014140%20).json
+    запрос/ответ (3, cases - Warnings) в файле
+        data/query.company01.json
     Отображается в браузере как:
         data/casebook.company01.result01.png
 
 компания «Демесне Инвестментс Лимитед»
-    запрос/ответ в файле
-        data/query.company.%D0%BA%D0%BE%D0%BC%D0%BF%D0%B0%D0%BD%D0%B8%D1%8F%20%C2%AB%D0%94%D0%B5%D0%BC%D0%B5%D1%81%D0%BD%D0%B5%20%D0%98%D0%BD%D0%B2%D0%B5%D1%81%D1%82%D0%BC%D0%B5%D0%BD%D1%82%D1%81%20%D0%9B%D0%B8%D0%BC%D0%B8%D1%82%D0%B5%D0%B4%C2%BB.json
+    запрос/ответ (3, cases - Warnings) в файле
+        data/query.company02.json
     Отображается в браузере как:
         data/casebook.company02.result01.png
 
 ОАО «Глобинторг» (ИНН 7723830905)
-    это очень интересный вариант - поиск по делам ничего не находит, но находит поиск по сторонам (sides) - есть подозрение, что поиск руководствуется подсказками suggest
-    запрос/ответ в файле
-        /home/valik/data/projects/casebook.ripper/data/query.company.%D0%9E%D0%90%D0%9E%20%C2%AB%D0%93%D0%BB%D0%BE%D0%B1%D0%B8%D0%BD%D1%82%D0%BE%D1%80%D0%B3%C2%BB%20(%D0%98%D0%9D%D0%9D%207723830905).json
+    это очень интересный вариант - поиск по делам ничего не находит, но находит поиск по сторонам (sides)
+    запрос/ответ (3) в файле
+        data/query.company03.json
     Отображается в браузере как:
         data/casebook.company03.result01.png
 }}}
@@ -131,28 +474,28 @@ OAO «ГАЗПРОМБАНК»
 
 {{{
 Волков Валерий Юрьевич
-    запрос/ответ в файле
-        /home/valik/data/projects/casebook.ripper/data/query.person.%D0%92%D0%BE%D0%BB%D0%BA%D0%BE%D0%B2%20%D0%92%D0%B0%D0%BB%D0%B5%D1%80%D0%B8%D0%B9%20%D0%AE%D1%80%D1%8C%D0%B5%D0%B2%D0%B8%D1%87.json
+    запрос/ответ (3, cases - Warnings) в файле
+        data/query.person01.json
     Отображается в браузере как:
         data/casebook.person01.result01.png
 
 Габдрахимов Александр Мухаматшевич
     тоже ничего не находит. четко видно как выполняется три запроса: suggest, cases, sides
-    запрос/ответ в файле
-        /home/valik/data/projects/casebook.ripper/data/query.person.%D0%93%D0%B0%D0%B1%D0%B4%D1%80%D0%B0%D1%85%D0%B8%D0%BC%D0%BE%D0%B2%20%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80%20%D0%9C%D1%83%D1%85%D0%B0%D0%BC%D0%B0%D1%82%D1%88%D0%B5%D0%B2%D0%B8%D1%87.json
+    запрос/ответ (3) в файле
+        data/query.person02.json
     Отображается в браузере как:
         data/casebook.person02.result01.png
 
 Шейдорова Александра Витальевна
     запрос/ответ (3) в файле
-        /home/valik/data/projects/casebook.ripper/data/query.person.%D0%A8%D0%B5%D0%B9%D0%B4%D0%BE%D1%80%D0%BE%D0%B2%D0%B0%20%D0%90%D0%BB%D0%B5%D0%BA%D1%81%D0%B0%D0%BD%D0%B4%D1%80%D0%B0%20%D0%92%D0%B8%D1%82%D0%B0%D0%BB%D1%8C%D0%B5%D0%B2%D0%BD%D0%B0.json
+        data/query.person03.json
     Отображается в браузере как:
         data/casebook.person03.result01.png
 }}}
 
 ################################################################################
 
-Возможно получение таких сообщений
+Возможно получение таких сообщений, данных либо нет вообще, либо данные не все
 
 HTTP/1.0 200 OK
 Cache-Control: no-cache
