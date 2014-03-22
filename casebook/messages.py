@@ -37,5 +37,8 @@ class JsonResponce(object):
         '''Returns responce 'Message' field value.
         Message string or 'n/a'
         '''
-        return self.obj.get(u'Message', u'n/a')
+        res = self.obj.get(u'Message', u'')
+        if res is None:
+            return u''
+        return res
 # class JsonResponce(object):

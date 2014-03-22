@@ -12,9 +12,9 @@ __FILE__="${__DIR__}/${__BASE__}"
 ARG1="${1:-Undefined}"
 # set -o nounset
 
-# casebook tools executor
+# Python tools executor
 
-set PROJECT_DIR = "/home/valik/data/projects/casebook.ripper"
+PROJECT_DIR="/home/valik/data/projects/casebook.ripper"
 
 # create virtualenv
 createVirtualenv() {
@@ -46,8 +46,9 @@ createRequirements() {
 execCasebookReader() {
     pushd "${PROJECT_DIR}"
     source env/bin/activate
-    export CASEBOOK_USER="username"
+    export CASEBOOK_USER="user name"
     export CASEBOOK_PASSWORD="secret"
+    export CASEBOOK_DATA="/home/valik/data/projects/casebook.ripper/data"
     python -m casebook
 }
 

@@ -30,13 +30,16 @@ class HttpSession(object):
 
     def restoreCookies(self, fname):
         '''Load http cookies from file'''
+        self.cookiesFileName = fname
         if os.path.isfile(fname):
             with open(fname) as f:
                 cookies = requests.utils.cookiejar_from_dict(pickle.load(f))
                 self.session.cookies = cookies
 
-    def saveCookies(self, fname):
+    def saveCookies(self, fname=''):
         '''Save http cookies to file'''
+        if fname == '':
+            fname = self.cookiesFileName
         with open(fname, 'w') as f:
             pickle.dump(requests.utils.dict_from_cookiejar(self.session.cookies), f)
 
@@ -52,11 +55,11 @@ class HttpSession(object):
         self.session.headers.update(dictHeaders)
 
 
-    def get(self, url):
+    def get(self, url, params=None):
         '''Send HTTP GET requests and return Response object.
         http://docs.python-requests.org/en/latest/api/#requests.Response
         '''
-        res = self.session.get(url)
+        res = self.session.get(url, params=params)
         return res
 
 
