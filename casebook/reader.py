@@ -115,7 +115,7 @@ def getCasesAndSides(session, queryString):
         js = x[0]
         fname = os.path.join(DATA_DIR, "query.%s.%s.json" % (hash, resName))
         print (u"write result to file '%s'" % fname).encode(CP)
-        with open(fname, 'w') as f:
+        with open(fname, 'wb') as f:
             f.write(js.text.encode(CP))
 
 #~ Дополнительно, информация о запросе/ответе сохраняется в индексный файл:
