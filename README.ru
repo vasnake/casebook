@@ -708,6 +708,167 @@ Proxy-Connection: keep-alive
   }
 }
 
+
+################################################################################
+
+Разбор трафика браузера при собирании информации по делам и участникам
+
+После первичного поиска мы имеем список cases (дела) и список sides (участники).
+Используя информацию из этих списков надо забрать следующую информацию.
+
+Для каждого дела:
+    карточка дела GET http://casebook.ru/api/Card/Case?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
+        GET http://casebook.ru/api/Card/InstanceDocuments?id=9c80dae7-7cc3-4724-80e5-84d6fa6361e3
+        POST http://casebook.ru/api/Card/PdfDocumentArchiveInstanceCount/9c80dae7-7cc3-4724-80e5-84d6fa6361e3
+    Скачать документы
+        GET http://casebook.ru/File/PdfDocumentArchiveCase/fbafd1b2-e22d-496c-a6f9-6a94b2d1effc/%D0%9058-734-2014.zip
+    Участники дела
+        Истцы (side/info)
+        Ответчики (side/info)
+        Третьи лица
+        Иные лица
+        документы
+            GET http://casebook.ru/api/Card/CaseDocuments?id=fbafd1b2-e22d-496c-a6f9-6a94b2d1effc
+    Суды и судьи
+        Судья (judge/ifo)
+            Информация
+                GET http://casebook.ru/api/Card/Judge/d3672703-af3a-4500-bacb-ffded24067f1
+
+Для каждого участника:
+    (side/info) подробная информация
+        POST http://casebook.ru/api/Card/BusinessCard
+        POST http://casebook.ru/api/Card/BankruptCard
+        GET http://casebook.ru/api/Search/SidesDetailsEx
+        GET http://casebook.ru/api/Card/Excerpt?Address=...
+        история изменений руководителя
+            POST http://casebook.ru/api/Card/RequestPersonInfo/750349
+            GET http://casebook.ru/api/Card/CheckRequestStates/677732
+            GET http://casebook.ru/api/Notification/GetLastNormalize/677732
+        (side/head) сведения о руководителе GET http://casebook.ru/api/Card/Person/750349
+        (side/info) учредители
+        (side/info) учрежденные
+        Отчетность (POST http://casebook.ru/api/Card/AccountingStat)
+        Арбитражные дела (POST http://casebook.ru/api/Search/Cases)
+            (POST http://casebook.ru/api/Card/OrgStatShort)
+            расписание на месяц (POST http://casebook.ru/api/Calendar/Period)
+                документы (GET http://casebook.ru/File/PdfDocument/18f5a877-751c-426a-a0b9-ef49c0b8dd16/A33-5491-2013_20131024_Reshenie.pdf)
+                    GET http://casebook.ru/File/PdfDocument/af6407d6-47dd-428f-9f2b-184af0b3e6da/A58-1045-2014_20140311_Opredelenie.pdf
+        Дела СОЮ (POST http://casebook.ru/api/Search/CasesGj)
+
+################################################################################
+
+Пример. Дело № А40-27010/2012
+Поиск находит одно дело, показывает список http://casebook.ru/#selection/cases
+участников не показывает, СОЮ не показывает.
+Для каждого дела:
+    получить подробную информацию, используя resp.Result.Items[i].CaseId (78d283d0-010e-4c50-b1d1-cf2395c00bf9)
+    карточка дела GET http://casebook.ru/api/Card/Case?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
+    сколько документов POST http://casebook.ru/api/Card/PdfDocumentArchiveCaseCount/78d283d0-010e-4c50-b1d1-cf2395c00bf9
+    инфо по документам GET http://casebook.ru/api/Card/CaseDocuments?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
+    архив документов http://casebook.ru/File/PdfDocumentArchiveCase/78d283d0-010e-4c50-b1d1-cf2395c00bf9/%D0%9040-27010-2012.zip
+        где %D0%9040-27010-2012.zip - желаемое имя файла
+    документы по инстанциям (номер брать из Card/Case resp.Result.Case.Instances[i].Id)
+        GET http://casebook.ru/api/Card/InstanceDocuments?id=b55f3d6b-10f3-42c4-a28b-48528f11dc15
+        POST http://casebook.ru/api/Card/PdfDocumentArchiveInstanceCount/b55f3d6b-10f3-42c4-a28b-48528f11dc15
+            без payload
+    для всех (side/info) для участников - истцы, ответчики, третьи лица, иные (параметры запроса берутся из инфы по делу)
+        POST http://casebook.ru/api/Card/BusinessCard
+            пример payload запроса {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
+        POST http://casebook.ru/api/Card/BankruptCard
+            payload такой же
+
+################################################################################
+
+Этап сбора информации через Fiddler. Что доступно из браузера
+
+Участники (#selection/sides)
+    показывает список типа Название, Адрес, ИНН
+    можно пойти по ссылке типа (side/info)
+    можно открыть карточку inplace
+        GET http://casebook.ru/api/Search/SidesDetailsEx?index=7&inn=4345338310&okpo=10921600
+        POST http://casebook.ru/api/Search/Cases
+        показывает список дел (дело, участники, инстанции, события)
+            можно открыть карточку дела в новом окне http://casebook.ru/#case/1e56dba1-8f0d-4756-9f39-29d30bd449dd
+                GET http://casebook.ru/api/Card/Case?id=1e56dba1-8f0d-4756-9f39-29d30bd449dd
+        можно перейти по ссылке (открыть карточку) типа (side/info)
+
+Арбитражные дела (#selection/cases)
+    показывает список дел (дело, участники, инстанции, события)
+    можно открыть карточку inplace
+    ссылки на дела типа (http://casebook.ru/#case/fbafd1b2-e22d-496c-a6f9-6a94b2d1effc)
+        страница аналогично Выбрал дело/Открыть карточку
+    ссылки на судью типа (http://casebook.ru/#judge/info/d3672703-af3a-4500-bacb-ffded24067f1)
+
+    выбрал дело "Number": "А54-1530/2014"
+    открыл карточку inplace
+    получил запросы
+        GET http://casebook.ru/api/Card/Case?id=114e4866-fd5a-4330-a146-53f33083374b
+        POST http://casebook.ru/api/Card/PdfDocumentArchiveCaseCount/114e4866-fd5a-4330-a146-53f33083374b
+        GET http://casebook.ru/api/Card/CaseDocuments?id=114e4866-fd5a-4330-a146-53f33083374b
+    В интерфейсе есть:
+        Открыть карточку
+            GET http://casebook.ru/api/Card/InstanceDocuments?id=9c80dae7-7cc3-4724-80e5-84d6fa6361e3
+            POST http://casebook.ru/api/Card/PdfDocumentArchiveInstanceCount/9c80dae7-7cc3-4724-80e5-84d6fa6361e3
+        Скачать документы (GET http://casebook.ru/File/PdfDocumentArchiveCase/fbafd1b2-e22d-496c-a6f9-6a94b2d1effc/%D0%9058-734-2014.zip)
+        Истцы (side/info)
+        Ответчики (side/info)
+        Третьи лица
+        Иные лица
+        Судья (judge/ifo)
+{{{
+Выбрал дело/Открыть карточку в новом окне (Case?id=fbafd1b2-e22d-496c-a6f9-6a94b2d1effc)
+получил запросы (некоторые повторяются)
+    GET http://casebook.ru/api/Card/InstanceDocuments?id=9c80dae7-7cc3-4724-80e5-84d6fa6361e3
+    POST http://casebook.ru/api/Card/PdfDocumentArchiveInstanceCount/9c80dae7-7cc3-4724-80e5-84d6fa6361e3
+В интерфейсе есть:
+    Скачать карточку (POST http://casebook.ru/File/Pdf)
+    Скачать документы (GET http://casebook.ru/File/PdfDocumentArchiveCase/fbafd1b2-e22d-496c-a6f9-6a94b2d1effc/%D0%9058-734-2014.zip)
+    Участники дела
+        Истцы (side/info) (POST http://casebook.ru/api/Card/BusinessCard)
+            POST http://casebook.ru/api/Card/BankruptCard
+        Ответчики (side/info) (см.Истцы)
+        Третьи лица
+        Иные лица
+        документы (GET http://casebook.ru/api/Card/CaseDocuments?id=fbafd1b2-e22d-496c-a6f9-6a94b2d1effc)
+    Суды и судьи
+        Судья (judge/ifo)
+            Информация (GET http://casebook.ru/api/Card/Judge/d3672703-af3a-4500-bacb-ffded24067f1)
+            Дела (POST http://casebook.ru/api/Search/Cases)
+    Судебные акты (GET http://casebook.ru/api/Card/CaseDocuments?id=fbafd1b2-e22d-496c-a6f9-6a94b2d1effc)
+
+Выбрал дело/Открыть карточку/Участники дела - Истцы (конкр.истец)
+    POST http://casebook.ru/api/Card/BusinessCard
+    POST http://casebook.ru/api/Card/BankruptCard
+в интефейсе есть:
+    Выписка из ЕГРЮЛ (GET http://casebook.ru/api/Card/Excerpt?Address=...)
+    Об участнике
+        история изменений руководителя (POST http://casebook.ru/api/Card/RequestPersonInfo/750349)
+            GET http://casebook.ru/api/Card/CheckRequestStates/677732
+            GET http://casebook.ru/api/Notification/GetLastNormalize/677732
+            (side/head) GET http://casebook.ru/api/Card/Person/750349
+        учредители (side/info)
+        учрежденные (side/info)
+    Отчетность (POST http://casebook.ru/api/Card/AccountingStat)
+    Арбитражные дела (POST http://casebook.ru/api/Search/Cases)
+        (POST http://casebook.ru/api/Card/OrgStatShort)
+        Экспорт (POST http://casebook.ru/File/ExportSearchCsv/)
+            CSV
+        расписание на месяц (POST http://casebook.ru/api/Calendar/Period)
+            документы (GET http://casebook.ru/File/PdfDocument/18f5a877-751c-426a-a0b9-ef49c0b8dd16/A33-5491-2013_20131024_Reshenie.pdf)
+                GET http://casebook.ru/File/PdfDocument/af6407d6-47dd-428f-9f2b-184af0b3e6da/A58-1045-2014_20140311_Opredelenie.pdf
+    Дела СОЮ (POST http://casebook.ru/api/Search/CasesGj)
+        Экспорт CSV (POST http://casebook.ru/File/ExportGjSearchCsv/)
+}}}
+
+Дела СОЮ (http://casebook.ru/#selection/general)
+    POST http://casebook.ru/api/Search/CasesGj
+    показывает список дел (дело, участники, инстанции, судья, события)
+    можно открыть карточку дела в новом окне (#general/8c47f6fb-e1fe-4768-b3db-268caef3f6ea)
+        GET http://casebook.ru/api/Card/GjCase?id=76e00283-876e-4354-a4fa-f5c562710e05
+        показывает участников дела (side/info)
+    можно развернуть карточку inplace
+        показывает участников дела (side/info)
+
 ################################################################################
 
 Теперь следующий шаг: пользуясь результатами поисковых запросов вытягивать "всю" информацию с сайта.
