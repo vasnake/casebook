@@ -49,6 +49,7 @@ call env\scripts\activate.bat
 set CASEBOOK_USER=user name
 set CASEBOOK_PASSWORD=secret
 set CASEBOOK_DATA=c:\d\code\git\casebook.ru\data
+set PYTHONIOENCODING=UTF-8
 python -m casebook
 exit
 

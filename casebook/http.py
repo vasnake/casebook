@@ -43,6 +43,10 @@ class HttpSession(object):
         with open(fname, 'w') as f:
             pickle.dump(requests.utils.dict_from_cookiejar(self.session.cookies), f)
 
+    def deleteCookies(self):
+        '''delete all cookies'''
+        cookies = requests.utils.cookiejar_from_dict({})
+        self.session.cookies = cookies
 
     def setHeaders(self, dictHeaders):
         '''Set http requests headers from dict.

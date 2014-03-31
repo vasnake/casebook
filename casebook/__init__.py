@@ -13,3 +13,12 @@ class LogOnError(Exception):
         self.value = value
     def __str__(self):
         return u"%s" % (self.value, )
+
+
+class RequestError(Exception):
+    '''raise this exception when request to casebook.ru failed
+    '''
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return u"%s" % (self.value, )

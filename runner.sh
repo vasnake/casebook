@@ -49,6 +49,7 @@ execCasebookReader() {
     export CASEBOOK_USER="user name"
     export CASEBOOK_PASSWORD="secret"
     export CASEBOOK_DATA="/home/valik/data/projects/casebook.ripper/data"
+    export PYTHONIOENCODING=UTF-8
     python -m casebook
 }
 
