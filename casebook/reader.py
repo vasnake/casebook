@@ -138,6 +138,7 @@ def collectCaseData(session, case):
         GET http://casebook.ru/api/Card/CaseDocuments
         GET http://casebook.ru/File/PdfDocumentArchiveCase
         POST http://casebook.ru/api/Card/BusinessCard
+        POST http://casebook.ru/api/Card/BankruptCard
     '''
     CaseId = case[u"CaseId"]
     print "collectCaseData, CaseId %s" % CaseId
@@ -159,13 +160,41 @@ def collectCaseData(session, case):
             side[k] = v if v is not None else u''
         sideID = side[u'Id']
         print "Side ID: %s" % side[u'Id']
-        #~ POST http://casebook.ru/api/Card/BusinessCard
+
+        #~ карточка участника POST http://casebook.ru/api/Card/BusinessCard
         #~ payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
-        jsCardBusinessCard = cardBusinessCard(session, sideID, side)
+        #~ jsCardBusinessCard = cardBusinessCard(session, sideID, side)
+
+        #~ что-то про банкротство, не знаю POST http://casebook.ru/api/Card/BankruptCard
+        #~ payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
+        jsCardBankruptCard = cardBankruptCard(session, sideID, side)
 
     # TODO: case А40-27010/2012
-    #~ участники
     #~ судьи
+
+
+def cardBankruptCard(session, sideID, side):
+    '''Get Card/BankruptCard data from http://casebook.ru/api/Card/BankruptCard
+    and save results.
+
+    Returns messages.JsonResponce with casebook message
+
+    side: dictionary with side data from Card/Case
+
+    POST http://casebook.ru/api/Card/BankruptCard
+    payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
+    '''
+    print u"Card/BankruptCard for side ID '%s' ..." % sideID
+
+    payload = getSideCardPayload(side)
+    url = 'http://casebook.ru/api/Card/BankruptCard'
+    res = session.post(url, data=simplejson.dumps(payload))
+
+    print (u"%s: %s" % (url, res.text)).encode(CP)
+    jsCardBankruptCard = parseResponce(res.text)
+
+    saveCardBankruptCard(jsCardBankruptCard, sideID)
+    return jsCardBankruptCard
 
 
 def cardBusinessCard(session, sideID, side):
@@ -181,14 +210,7 @@ def cardBusinessCard(session, sideID, side):
     '''
     print u"Card/BusinessCard for side ID '%s' ..." % sideID
 
-    qt = u'''{"Address":"","Inn":"","Name":"","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}'''
-    payload = simplejson.loads(qt)
-    payload[u"Address"] = side.get(u'Address', u'')
-    payload[u"Inn"] = side.get(u'Inn', u'')
-    payload[u"Name"] = side.get(u'Name', u'')
-    payload[u"Ogrn"] = side.get(u'Ogrn', u'')
-    payload[u"Okpo"] = side.get(u'Okpo', u'')
-
+    payload = getSideCardPayload(side)
     url = 'http://casebook.ru/api/Card/BusinessCard'
     res = session.post(url, data=simplejson.dumps(payload))
 
@@ -197,6 +219,23 @@ def cardBusinessCard(session, sideID, side):
 
     saveCardBusinessCard(jsCardBusinessCard, sideID)
     return jsCardBusinessCard
+
+
+def getSideCardPayload(side):
+    '''Returns payload for
+    POST http://casebook.ru/api/Card/BankruptCard
+    POST http://casebook.ru/api/Card/BusinessCard
+    '''
+    qt = u'''{"Address":"","Inn":"","Name":"","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}'''
+    payload = simplejson.loads(qt)
+
+    payload[u"Address"] = side.get(u'Address', u'')
+    payload[u"Inn"] = side.get(u'Inn', u'')
+    payload[u"Name"] = side.get(u'Name', u'')
+    payload[u"Ogrn"] = side.get(u'Ogrn', u'')
+    payload[u"Okpo"] = side.get(u'Okpo', u'')
+
+    return payload
 
 
 def  getSidesFromCase(jsCardCase):
@@ -308,6 +347,13 @@ def findCases(session, queryString):
     return jsCases
 
 
+def saveCardBankruptCard(jsCardBankruptCard, sideID):
+    '''Save side bankruptcard info to a file, update index
+    '''
+    fname = saveResults2File(jsCardBankruptCard, sideID, 'card', 'bankruptcard')
+    updateIndexForBankruptCard(sideID, fname, jsCardBankruptCard)
+
+
 def saveCardBusinessCard(jsCardBusinessCard, sideID):
     '''Save side businesscard info to a file, update index
     '''
@@ -378,6 +424,25 @@ def saveResults2File(jsResp, queryString, category, typeName, respType='json'):
         else:
             raise TypeError("Unknown file type: %s" % respType)
     return fname
+
+
+def updateIndexForBankruptCard(sideID, fname, jsCardBankruptCard):
+    '''Save side id and file name to index.json file
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'sides', sideID)
+
+    state = jsCardBankruptCard.obj.get(u'Result', {}).get(u'State', '')
+    state = '' if state is None else state
+
+    meta["SideId"] = sideID
+    meta["BankruptFileName"] = fname
+    meta["BankruptState"] = state
+    meta["Error"] = jsCardBankruptCard.Message if jsCardBankruptCard.Success == False else ''
+    meta["Warning"] = jsCardBankruptCard.Message
+
+    indexObj = setListItemToIndex(indexObj, 'sides', sideID, meta)
+    saveIndex(indexObj)
 
 
 def updateIndexForBusinessCard(sideID, fname, jsCardBusinessCard):
