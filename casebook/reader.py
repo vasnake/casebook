@@ -90,9 +90,26 @@ def getCasesAndSides(session, queryString):
     jsCases = findCases(session, queryString)
     jsSides = findSides(session, queryString)
 
-    forEachCase(session, jsCases)
-    # TODO:
-    #~ forEachSide(session, jsSides)
+    # TODO: uncomment
+    #~ forEachCase(session, jsCases)
+    forEachSide(session, jsSides)
+
+
+# TODO: collect info for each side from search results
+def forEachSide(session, jsSides):
+    '''Collect information for each side
+
+    for each side
+        ???
+    '''
+    numSides = len(jsSides.obj[u'Result'])
+    print "forEachSide, TotalCount %s" % numSides
+    if numSides <= 0:
+        return
+
+    sidesList = jsSides.obj[u'Result']
+    for side in sidesList:
+        collectSideData(session, side)
 
 
 def forEachCase(session, jsCases):
@@ -148,11 +165,11 @@ def collectCaseData(session, case):
     jsCardCase = cardCase(session, CaseId)
 
     #~ инфо о документах GET http://casebook.ru/api/Card/CaseDocuments?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
-    #~ jsCardCaseDocuments = cardCaseDocuments(session, CaseId)
+    jsCardCaseDocuments = cardCaseDocuments(session, CaseId)
 
     #~ архив документов GET http://casebook.ru/File/PdfDocumentArchiveCase/78d283d0-010e-4c50-b1d1-cf2395c00bf9/%D0%9040-27010-2012.zip
     #~ Content-Type: application/zip
-    #~ filePdfDocumentArchiveCase(session, CaseId)
+    filePdfDocumentArchiveCase(session, CaseId)
 
     caseSides = getSidesFromCase(jsCardCase)
     for x in caseSides:
@@ -163,12 +180,10 @@ def collectCaseData(session, case):
         print "Side ID: %s" % sideID
 
         #~ карточка участника POST http://casebook.ru/api/Card/BusinessCard
-        #~ payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
-        #~ jsCardBusinessCard = cardBusinessCard(session, sideID, side)
+        jsCardBusinessCard = cardBusinessCard(session, sideID, side)
 
         #~ что-то про банкротство, не знаю POST http://casebook.ru/api/Card/BankruptCard
-        #~ payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
-        #~ jsCardBankruptCard = cardBankruptCard(session, sideID, side)
+        jsCardBankruptCard = cardBankruptCard(session, sideID, side)
 
     caseJudges = getJudgesFromCase(jsCardCase)
     for x in caseJudges:
