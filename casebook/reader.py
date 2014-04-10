@@ -128,14 +128,16 @@ def collectCaseData(session, case):
         card.casedocuments
         File.PdfDocumentArchiveCase
         for each side
-            card.bankruptcard
             card.businesscard
+            card.bankruptcard
         for each judge
             Card.Judge
 
     URLs:
         GET http://casebook.ru/api/Card/Case
         GET http://casebook.ru/api/Card/CaseDocuments
+        GET http://casebook.ru/File/PdfDocumentArchiveCase
+        POST http://casebook.ru/api/Card/BusinessCard
     '''
     CaseId = case[u"CaseId"]
     print "collectCaseData, CaseId %s" % CaseId
@@ -144,11 +146,82 @@ def collectCaseData(session, case):
     jsCardCase = cardCase(session, CaseId)
 
     #~ инфо о документах GET http://casebook.ru/api/Card/CaseDocuments?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
-    jsCardCaseDocuments = cardCaseDocuments(session, CaseId)
+    #~ jsCardCaseDocuments = cardCaseDocuments(session, CaseId)
+
+    #~ архив документов GET http://casebook.ru/File/PdfDocumentArchiveCase/78d283d0-010e-4c50-b1d1-cf2395c00bf9/%D0%9040-27010-2012.zip
+    #~ Content-Type: application/zip
+    #~ filePdfDocumentArchiveCase(session, CaseId)
+
+    caseSides = getSidesFromCase(jsCardCase)
+    for x in caseSides:
+        side = {} # replace None to ''
+        for k,v in x.items():
+            side[k] = v if v is not None else u''
+        sideID = side[u'Id']
+        print "Side ID: %s" % side[u'Id']
+        #~ POST http://casebook.ru/api/Card/BusinessCard
+        #~ payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
+        jsCardBusinessCard = cardBusinessCard(session, sideID, side)
 
     # TODO: case А40-27010/2012
-    #~ документы
     #~ участники
+    #~ судьи
+
+
+def cardBusinessCard(session, sideID, side):
+    '''Get Card/BusinessCard data from http://casebook.ru/api/Card/BusinessCard
+    and save results.
+
+    Returns messages.JsonResponce with casebook message
+
+    side: dictionary with side data from Card/Case
+
+    POST http://casebook.ru/api/Card/BusinessCard
+    payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
+    '''
+    print u"Card/BusinessCard for side ID '%s' ..." % sideID
+
+    qt = u'''{"Address":"","Inn":"","Name":"","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}'''
+    payload = simplejson.loads(qt)
+    payload[u"Address"] = side.get(u'Address', u'')
+    payload[u"Inn"] = side.get(u'Inn', u'')
+    payload[u"Name"] = side.get(u'Name', u'')
+    payload[u"Ogrn"] = side.get(u'Ogrn', u'')
+    payload[u"Okpo"] = side.get(u'Okpo', u'')
+
+    url = 'http://casebook.ru/api/Card/BusinessCard'
+    res = session.post(url, data=simplejson.dumps(payload))
+
+    print (u"%s: %s" % (url, res.text)).encode(CP)
+    jsCardBusinessCard = parseResponce(res.text)
+
+    saveCardBusinessCard(jsCardBusinessCard, sideID)
+    return jsCardBusinessCard
+
+
+def  getSidesFromCase(jsCardCase):
+    '''Returns list of sides from case card.
+
+    jsCardCase: casebook.JsonResponce object with Card/Case data
+    '''
+    caseSides = []
+    for x in [u'Plaintiffs', u'Defendants', u'Third', u'Others']:
+        lst = jsCardCase.obj[u'Result'][u'Case'][u'Sides'][x]
+        caseSides += lst
+    return caseSides
+
+
+def filePdfDocumentArchiveCase(session, CaseId):
+    '''Get File/PdfDocumentArchiveCase data from http://casebook.ru/File/PdfDocumentArchiveCase/
+    and save results (CaseId.caseDocs.zip file).
+    '''
+    print u"File/PdfDocumentArchiveCase by CaseId '%s' ..." % CaseId
+
+    url = 'http://casebook.ru/File/PdfDocumentArchiveCase/%s/%s.caseDocs.zip' % (CaseId, CaseId)
+    res = session.get(url, stream=True)
+
+    print (u"%s: %s" % (url, res.status_code)).encode(CP)
+    saveFilePdfDocumentArchiveCase(res, CaseId)
 
 
 def cardCaseDocuments(session, CaseId):
@@ -235,6 +308,22 @@ def findCases(session, queryString):
     return jsCases
 
 
+def saveCardBusinessCard(jsCardBusinessCard, sideID):
+    '''Save side businesscard info to a file, update index
+    '''
+    fname = saveResults2File(jsCardBusinessCard, sideID, 'card', 'businesscard')
+    updateIndexForBusinessCard(sideID, fname, jsCardBusinessCard)
+
+
+def saveFilePdfDocumentArchiveCase(res, CaseId):
+    '''Save case documents zip archive info to file, update index
+
+    res: requests.Responce object with binary data
+    '''
+    fname = saveResults2File(res, CaseId, 'file', 'casedocuments', 'zip')
+    updateIndexForCaseDocumentsArchive(CaseId, fname, None)
+
+
 def saveCardCaseDocuments(jsCardCaseDocuments, CaseId):
     '''Save case documents info to file, update index
     '''
@@ -267,17 +356,58 @@ def saveSearchResults2File(jsResp, queryString, typeName):
     '''
     return saveResults2File(jsResp, queryString, 'query', typeName)
 
-def saveResults2File(jsResp, queryString, category, typeName):
+
+def saveResults2File(jsResp, queryString, category, typeName, respType='json'):
     '''Save search results to file.
     Returns file name
+
+    respType: string, may be 'json', 'zip'.
+        If respType is 'zip', jsResp treated as requests.Responce.
+        Otherwise jsResp treated as messages.JsonResponce
     '''
     id = stringToFileName(queryString)
-    fname = os.path.join(DATA_DIR, "%s.%s.%s.json" % (category, id, typeName))
+    fname = os.path.join(DATA_DIR, "%s.%s.%s.%s" % (category, id, typeName, respType))
     print (u"write result to file '%s'" % fname).encode(CP)
 
     with open(fname, 'wb') as f:
-        f.write(jsResp.text.encode(CP))
+        if respType == 'json':
+            f.write(jsResp.text.encode(CP))
+        elif respType == 'zip':
+            for chunk in jsResp.iter_content():
+                f.write(chunk)
+        else:
+            raise TypeError("Unknown file type: %s" % respType)
     return fname
+
+
+def updateIndexForBusinessCard(sideID, fname, jsCardBusinessCard):
+    '''Save side id and file name to index.json file
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'sides', sideID)
+
+    meta["SideId"] = sideID
+    meta["FileName"] = fname
+    meta["Name"] = jsCardBusinessCard.obj.get(u'Result', {}).get(u'Name', '')
+    meta["Address"] = jsCardBusinessCard.obj.get(u'Result', {}).get(u'Address', '')
+    meta["Error"] = jsCardBusinessCard.Message if jsCardBusinessCard.Success == False else ''
+    meta["Warning"] = jsCardBusinessCard.Message
+
+    indexObj = setListItemToIndex(indexObj, 'sides', sideID, meta)
+    saveIndex(indexObj)
+
+
+def updateIndexForCaseDocumentsArchive(CaseId, fname, jsObj=None):
+    '''Save case id and file name to index.json file
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'cases', CaseId)
+
+    meta["CaseId"] = CaseId
+    meta["DocsArchiveFileName"] = fname
+
+    indexObj = setListItemToIndex(indexObj, 'cases', CaseId, meta)
+    saveIndex(indexObj)
 
 
 def updateIndexForCaseDocuments(CaseId, fname, jsCardCaseDocuments):

@@ -59,11 +59,11 @@ class HttpSession(object):
         self.session.headers.update(dictHeaders)
 
 
-    def get(self, url, params=None):
+    def get(self, url, **kwargs):
         '''Send HTTP GET requests and return Response object.
         http://docs.python-requests.org/en/latest/api/#requests.Response
         '''
-        res = self.session.get(url, params=params)
+        res = self.session.get(url, **kwargs)
         return res
 
 
