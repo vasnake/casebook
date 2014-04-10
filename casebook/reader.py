@@ -139,6 +139,7 @@ def collectCaseData(session, case):
         GET http://casebook.ru/File/PdfDocumentArchiveCase
         POST http://casebook.ru/api/Card/BusinessCard
         POST http://casebook.ru/api/Card/BankruptCard
+        GET http://casebook.ru/api/Card/Judge
     '''
     CaseId = case[u"CaseId"]
     print "collectCaseData, CaseId %s" % CaseId
@@ -155,11 +156,11 @@ def collectCaseData(session, case):
 
     caseSides = getSidesFromCase(jsCardCase)
     for x in caseSides:
-        side = {} # replace None to ''
+        side = {} # replace None with ''
         for k,v in x.items():
             side[k] = v if v is not None else u''
         sideID = side[u'Id']
-        print "Side ID: %s" % side[u'Id']
+        print "Side ID: %s" % sideID
 
         #~ карточка участника POST http://casebook.ru/api/Card/BusinessCard
         #~ payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
@@ -167,10 +168,38 @@ def collectCaseData(session, case):
 
         #~ что-то про банкротство, не знаю POST http://casebook.ru/api/Card/BankruptCard
         #~ payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
-        jsCardBankruptCard = cardBankruptCard(session, sideID, side)
+        #~ jsCardBankruptCard = cardBankruptCard(session, sideID, side)
 
-    # TODO: case А40-27010/2012
-    #~ судьи
+    caseJudges = getJudgesFromCase(jsCardCase)
+    for x in caseJudges:
+        judge = {} # replace None with ''
+        for k,v in x.items():
+            judge[k] = v if v is not None else u''
+        judgeID = judge[u'Id']
+        print "Judge ID: %s" % judgeID
+
+        #~ карточка судьи GET http://casebook.ru/api/Card/Judge/96743d1a-ca39-4c2f-a5f2-94a2aa0c8b8f
+        jsCardJudge = cardJudge(session, judgeID)
+
+
+def cardJudge(session, judgeID):
+    '''Get Card/Judge data from http://casebook.ru/api/Card/Judge/
+    and save results.
+
+    Returns messages.JsonResponce with casebook message
+
+    GET http://casebook.ru/api/Card/Judge/96743d1a-ca39-4c2f-a5f2-94a2aa0c8b8f
+    '''
+    print u"Card/Judge for judge ID '%s' ..." % judgeID
+
+    url = 'http://casebook.ru/api/Card/Judge/%s' % judgeID
+    res = session.get(url)
+
+    print (u"%s: %s" % (url, res.text)).encode(CP)
+    jsCardJudge = parseResponce(res.text)
+
+    saveCardJudge(jsCardJudge, judgeID)
+    return jsCardJudge
 
 
 def cardBankruptCard(session, sideID, side):
@@ -238,10 +267,21 @@ def getSideCardPayload(side):
     return payload
 
 
+def getJudgesFromCase(jsCardCase):
+    '''Returns list of judges from case card.
+
+    jsCardCase: messages.JsonResponce object with Card/Case data
+    '''
+    caseJudges = []
+    for x in jsCardCase.obj[u'Result'][u'Case'][u'Judges']:
+        caseJudges += x[u'Judges']
+    return caseJudges
+
+
 def  getSidesFromCase(jsCardCase):
     '''Returns list of sides from case card.
 
-    jsCardCase: casebook.JsonResponce object with Card/Case data
+    jsCardCase: messages.JsonResponce object with Card/Case data
     '''
     caseSides = []
     for x in [u'Plaintiffs', u'Defendants', u'Third', u'Others']:
@@ -347,6 +387,13 @@ def findCases(session, queryString):
     return jsCases
 
 
+def saveCardJudge(jsCardJudge, judgeID):
+    '''Save judge info to a file, update index
+    '''
+    fname = saveResults2File(jsCardJudge, judgeID, 'card', 'judge')
+    updateIndexForJudgeCard(judgeID, fname, jsCardJudge)
+
+
 def saveCardBankruptCard(jsCardBankruptCard, sideID):
     '''Save side bankruptcard info to a file, update index
     '''
@@ -424,6 +471,23 @@ def saveResults2File(jsResp, queryString, category, typeName, respType='json'):
         else:
             raise TypeError("Unknown file type: %s" % respType)
     return fname
+
+
+def updateIndexForJudgeCard(judgeID, fname, jsCardJudge):
+    '''Save judge id and file name to index.json file
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'judges', judgeID)
+
+    meta["JudgeId"] = judgeID
+    meta["FileName"] = fname
+    meta["Error"] = jsCardJudge.Message if jsCardJudge.Success == False else ''
+    meta["Warning"] = jsCardJudge.Message
+    meta["JudgeDisplayName"] = jsCardJudge.obj.get(u'Result', {}).get(u'JudgeDisplayName', '')
+    meta["CourtFullName"] = jsCardJudge.obj.get(u'Result', {}).get(u'CourtFullName', '')
+
+    indexObj = setListItemToIndex(indexObj, 'judges', judgeID, meta)
+    saveIndex(indexObj)
 
 
 def updateIndexForBankruptCard(sideID, fname, jsCardBankruptCard):

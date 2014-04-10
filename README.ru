@@ -780,7 +780,7 @@ Proxy-Connection: keep-alive
 Если кратко, порядок запросов такой:
 search.sides
 search.cases
-for each case
+for each case from search
     card.case
     Card.PdfDocumentArchiveCaseCount - just num of docs - skip it
     card.casedocuments
