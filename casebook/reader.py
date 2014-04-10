@@ -97,6 +97,17 @@ def getCasesAndSides(session, queryString):
 
 def forEachCase(session, jsCases):
     '''Collect information for each case
+
+    for each case
+        card.case
+        Card.PdfDocumentArchiveCaseCount - just num of docs - skip it
+        card.casedocuments
+        File.PdfDocumentArchiveCase
+        for each side
+            card.bankruptcard
+            card.businesscard
+        for each judge
+            Card.Judge
     '''
     numCases = int(jsCases.obj[u'Result'][u'TotalCount'])
     print "forEachCase, TotalCount %s" % numCases
@@ -109,15 +120,53 @@ def forEachCase(session, jsCases):
 
 
 def collectCaseData(session, case):
-    '''Collect information for given case
+    '''Collect information for given case.
+
+    Sequence:
+        card.case
+        Card.PdfDocumentArchiveCaseCount - just num of docs - skip it
+        card.casedocuments
+        File.PdfDocumentArchiveCase
+        for each side
+            card.bankruptcard
+            card.businesscard
+        for each judge
+            Card.Judge
+
+    URLs:
+        GET http://casebook.ru/api/Card/Case
+        GET http://casebook.ru/api/Card/CaseDocuments
     '''
     CaseId = case[u"CaseId"]
     print "collectCaseData, CaseId %s" % CaseId
+
     #~ карточка дела GET http://casebook.ru/api/Card/Case?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
     jsCardCase = cardCase(session, CaseId)
-    # TODO:
+
+    #~ инфо о документах GET http://casebook.ru/api/Card/CaseDocuments?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
+    jsCardCaseDocuments = cardCaseDocuments(session, CaseId)
+
+    # TODO: case А40-27010/2012
     #~ документы
     #~ участники
+
+
+def cardCaseDocuments(session, CaseId):
+    '''Get Card/CaseDocuments data from http://casebook.ru/api/Card/CaseDocuments
+    and save results.
+    Returns messages.JsonResponce with casebook message
+    '''
+    print u"Card/CaseDocuments by CaseId '%s' ..." % CaseId
+
+    url = 'http://casebook.ru/api/Card/CaseDocuments'
+    payload = {'id': CaseId}
+    res = session.get(url, params=payload)
+
+    print (u"%s: %s" % (url, res.text)).encode(CP)
+    jsCardCaseDocuments = parseResponce(res.text)
+
+    saveCardCaseDocuments(jsCardCaseDocuments, CaseId)
+    return jsCardCaseDocuments
 
 
 def cardCase(session, CaseId):
@@ -186,6 +235,13 @@ def findCases(session, queryString):
     return jsCases
 
 
+def saveCardCaseDocuments(jsCardCaseDocuments, CaseId):
+    '''Save case documents info to file, update index
+    '''
+    fname = saveResults2File(jsCardCaseDocuments, CaseId, 'card', 'casedocuments')
+    updateIndexForCaseDocuments(CaseId, fname, jsCardCaseDocuments)
+
+
 def saveCardCase(jsCardCase, CaseId):
     '''Save case data to file, update index
     '''
@@ -222,6 +278,22 @@ def saveResults2File(jsResp, queryString, category, typeName):
     with open(fname, 'wb') as f:
         f.write(jsResp.text.encode(CP))
     return fname
+
+
+def updateIndexForCaseDocuments(CaseId, fname, jsCardCaseDocuments):
+    '''Save case id and file name to index.json file
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'cases', CaseId)
+
+    meta["CaseId"] = CaseId
+    meta["DocsFileName"] = fname
+    meta["DocsCount"] = len(jsCardCaseDocuments.obj[u'Result'][u'Documents'])
+    meta["DocsError"] = jsCardCaseDocuments.Message if jsCardCaseDocuments.Success == False else ''
+    meta["DocsWarning"] = jsCardCaseDocuments.Message
+
+    indexObj = setListItemToIndex(indexObj, 'cases', CaseId, meta)
+    saveIndex(indexObj)
 
 
 def updateIndexForCase(CaseId, fname, jsCardCase):
