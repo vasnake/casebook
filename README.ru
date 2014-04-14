@@ -778,7 +778,6 @@ Proxy-Connection: keep-alive
             payload такой же
 
 Если кратко, порядок запросов такой:
-search.sides
 search.cases
 for each case from search
     card.case
@@ -790,6 +789,28 @@ for each case from search
         card.businesscard
     for each judge
         Card.Judge
+
+################################################################################
+
+Поиск участников
+
+Если кратко, порядок запросов такой:
+search.sides ОАО «ЛУКОЙЛ-Коми» (ИНН 1106014140 )
+for each side
+    card.accountingstat.saz
+    card.excerpt.saz
+    search.sidesdetailsex.saz
+    search.cases.saz    search.cases2.saz (for each side mentioned)
+    search.casesgj.saz
+    calendar.period.saz
+    card.bankruptcard.saz
+        case info for each case mentioned
+    card.businesscard.saz
+        Founders - side info for each side mentioned
+        for each founder (side)
+            search cases
+
+    test and tune for other side cards
 
 ################################################################################
 

@@ -95,12 +95,8 @@ def getCasesAndSides(session, queryString):
     forEachSide(session, jsSides)
 
 
-# TODO: collect info for each side from search results
 def forEachSide(session, jsSides):
     '''Collect information for each side
-
-    for each side
-        ???
     '''
     numSides = len(jsSides.obj[u'Result'])
     print "forEachSide, TotalCount %s" % numSides
@@ -114,17 +110,6 @@ def forEachSide(session, jsSides):
 
 def forEachCase(session, jsCases):
     '''Collect information for each case
-
-    for each case
-        card.case
-        Card.PdfDocumentArchiveCaseCount - just num of docs - skip it
-        card.casedocuments
-        File.PdfDocumentArchiveCase
-        for each side
-            card.bankruptcard
-            card.businesscard
-        for each judge
-            Card.Judge
     '''
     numCases = int(jsCases.obj[u'Result'][u'TotalCount'])
     print "forEachCase, TotalCount %s" % numCases
@@ -134,6 +119,37 @@ def forEachCase(session, jsCases):
     casesList = jsCases.obj[u'Result'][u'Items']
     for case in casesList:
         collectCaseData(session, case)
+
+
+def collectSideData(session, side):
+    '''Collect information for given side
+
+    Sequence:
+        card.accountingstat
+        card.excerpt
+        search.sidesdetailsex
+        search.cases    search.cases2 (for each side mentioned)
+        search.casesgj
+        calendar.period
+        card.bankruptcard
+            case info for each case mentioned
+        card.businesscard
+            Founders - side info for each side mentioned
+            for each founder (side)
+                search cases
+    '''
+    ShortName = side.get(u'ShortName', '')
+    print "collectSideData, side short name: %s" % ShortName
+
+    #~ отчетность POST http://casebook.ru/api/Card/AccountingStat
+    #~ payload {"Organization":{"Address": ...
+    jsCardAccountingStat = cardAccountingStat(session, side)
+
+    #~ выписка из ЕГРЮЛ
+    #~ GET http://casebook.ru/api/Card/Excerpt?Address= ...
+    cardExcerpt(session, side)
+
+    # TODO: collect info for each side from search results
 
 
 def collectCaseData(session, case):
@@ -159,7 +175,7 @@ def collectCaseData(session, case):
         GET http://casebook.ru/api/Card/Judge
     '''
     CaseId = case[u"CaseId"]
-    print "collectCaseData, CaseId %s" % CaseId
+    print "collectCaseData, CaseId: %s" % CaseId
 
     #~ карточка дела GET http://casebook.ru/api/Card/Case?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
     jsCardCase = cardCase(session, CaseId)
@@ -183,7 +199,7 @@ def collectCaseData(session, case):
         jsCardBusinessCard = cardBusinessCard(session, sideID, side)
 
         #~ что-то про банкротство, не знаю POST http://casebook.ru/api/Card/BankruptCard
-        jsCardBankruptCard = cardBankruptCard(session, sideID, side)
+        jsCardBankruptCard = cardBankruptCard(session, side, sideID)
 
     caseJudges = getJudgesFromCase(jsCardCase)
     for x in caseJudges:
@@ -217,7 +233,54 @@ def cardJudge(session, judgeID):
     return jsCardJudge
 
 
-def cardBankruptCard(session, sideID, side):
+def cardExcerpt(session, side):
+    '''Get Card/Excerpt document from casebook
+
+    выписка из ЕГРЮЛ
+    GET http://casebook.ru/api/Card/Excerpt?
+        Address=169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11
+        &Inn=1106014140
+        &Name=ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ...
+        &Ogrn=1021100895760
+        &Okpo=3314561
+        &IsUnique=false
+        &OrganizationId=0
+        &StorageId=346280
+    '''
+    print u"Card/Excerpt for ShortName '%s' ..." % side.get(u'ShortName', '')
+
+    payload = getSideCardPayload(side)
+    payload[u'IsUnique'] = False
+    payload[u'OrganizationId'] = ''
+    payload[u'StorageId'] = ''
+
+    url = 'http://casebook.ru/api/Card/Excerpt'
+    res = session.get(url, params=payload, stream=True)
+
+    print (u"%s: %s" % (url, res.status_code)).encode(CP)
+    saveCardExcerpt(res, side)
+
+
+def cardAccountingStat(session, side):
+    '''Get side data from casebook. отчетность.
+    POST http://casebook.ru/api/Card/AccountingStat
+
+    Returns messages.JsonResponce with casebook message
+    '''
+    print u"Card/AccountingStat for ShortName '%s' ..." % side.get(u'ShortName', '')
+
+    payload = getSideAccountingStatPayload(side)
+    url = 'http://casebook.ru/api/Card/AccountingStat'
+    res = session.post(url, data=simplejson.dumps(payload))
+
+    print (u"%s: %s" % (url, res.text)).encode(CP)
+    jsCardAccountingStat = parseResponce(res.text)
+
+    saveCardAccountingStat(jsCardAccountingStat, side)
+    return jsCardAccountingStat
+
+
+def cardBankruptCard(session, side, sideID=''):
     '''Get Card/BankruptCard data from http://casebook.ru/api/Card/BankruptCard
     and save results.
 
@@ -237,7 +300,7 @@ def cardBankruptCard(session, sideID, side):
     print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardBankruptCard = parseResponce(res.text)
 
-    saveCardBankruptCard(jsCardBankruptCard, sideID)
+    saveCardBankruptCard(jsCardBankruptCard, side, sideID)
     return jsCardBankruptCard
 
 
@@ -261,7 +324,7 @@ def cardBusinessCard(session, sideID, side):
     print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardBusinessCard = parseResponce(res.text)
 
-    saveCardBusinessCard(jsCardBusinessCard, sideID)
+    saveCardBusinessCard(jsCardBusinessCard, side, sideID)
     return jsCardBusinessCard
 
 
@@ -279,6 +342,15 @@ def getSideCardPayload(side):
     payload[u"Ogrn"] = side.get(u'Ogrn', u'')
     payload[u"Okpo"] = side.get(u'Okpo', u'')
 
+    return payload
+
+
+def getSideAccountingStatPayload(side):
+    '''Returns payload for http://casebook.ru/api/Card/AccountingStat
+    '''
+    qt = u'''{"Organization":{"Address":"","Inn":"","Name":"","Ogrn":"","Okpo":"","IsUnique":false,"OrganizationId":0,"StorageId":null},"Year":null}'''
+    payload = simplejson.loads(qt)
+    payload[u'Organization'] = side
     return payload
 
 
@@ -409,18 +481,47 @@ def saveCardJudge(jsCardJudge, judgeID):
     updateIndexForJudgeCard(judgeID, fname, jsCardJudge)
 
 
-def saveCardBankruptCard(jsCardBankruptCard, sideID):
+def getSidePseudoID(side):
+    '''Returns unique string for side
+    Inn + Ogrn + Okpo + Name + Address
+    '''
+    # TODO: simple and lowercase
+    id = simplejson.dumps(getSideCardPayload(side), separators=(',', ':'), sort_keys=True, ensure_ascii=False)
+    return id
+
+
+def saveCardExcerpt(res, side):
+    '''Save side doc (выписка из ЕГРЮЛ) to file, update index
+
+    res: requests.Responce object with binary data
+    '''
+    SideId = getSidePseudoID(side)
+    fname = saveResults2File(res, SideId, 'card', 'excerpt', 'pdf')
+    updateIndexForCardExcerpt(SideId, fname, None)
+
+
+def saveCardAccountingStat(jsCardAccountingStat, side):
+    '''Save side accountingstat info to a file, update index
+    '''
+    SideId = getSidePseudoID(side)
+    fname = saveResults2File(jsCardAccountingStat, SideId, 'card', 'accountingstat')
+    updateIndexForAccountingStatCard(SideId, fname, jsCardAccountingStat)
+
+
+def saveCardBankruptCard(jsCardBankruptCard, side, sideID=''):
     '''Save side bankruptcard info to a file, update index
     '''
-    fname = saveResults2File(jsCardBankruptCard, sideID, 'card', 'bankruptcard')
-    updateIndexForBankruptCard(sideID, fname, jsCardBankruptCard)
+    pseudoID = getSidePseudoID(side)
+    fname = saveResults2File(jsCardBankruptCard, pseudoID, 'card', 'bankruptcard')
+    updateIndexForBankruptCard(pseudoID, fname, jsCardBankruptCard, sideID)
 
 
-def saveCardBusinessCard(jsCardBusinessCard, sideID):
+def saveCardBusinessCard(jsCardBusinessCard, side, sideID=''):
     '''Save side businesscard info to a file, update index
     '''
-    fname = saveResults2File(jsCardBusinessCard, sideID, 'card', 'businesscard')
-    updateIndexForBusinessCard(sideID, fname, jsCardBusinessCard)
+    pseudoID = getSidePseudoID(side)
+    fname = saveResults2File(jsCardBusinessCard, pseudoID, 'card', 'businesscard')
+    updateIndexForBusinessCard(pseudoID, fname, jsCardBusinessCard, sideID)
 
 
 def saveFilePdfDocumentArchiveCase(res, CaseId):
@@ -469,7 +570,7 @@ def saveResults2File(jsResp, queryString, category, typeName, respType='json'):
     '''Save search results to file.
     Returns file name
 
-    respType: string, may be 'json', 'zip'.
+    respType: string, may be 'json', 'zip', 'pdf'.
         If respType is 'zip', jsResp treated as requests.Responce.
         Otherwise jsResp treated as messages.JsonResponce
     '''
@@ -480,7 +581,7 @@ def saveResults2File(jsResp, queryString, category, typeName, respType='json'):
     with open(fname, 'wb') as f:
         if respType == 'json':
             f.write(jsResp.text.encode(CP))
-        elif respType == 'zip':
+        elif respType in ['zip', 'pdf']:
             for chunk in jsResp.iter_content():
                 f.write(chunk)
         else:
@@ -505,39 +606,71 @@ def updateIndexForJudgeCard(judgeID, fname, jsCardJudge):
     saveIndex(indexObj)
 
 
-def updateIndexForBankruptCard(sideID, fname, jsCardBankruptCard):
+def updateIndexForCardExcerpt(id, fname, jsData=None):
+    '''Save Card/Excerpt id and file name to index.json file
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'sides', id)
+
+    meta["SidePseudoId"] = id
+    meta["CardExcerptFileName"] = fname
+
+    indexObj = setListItemToIndex(indexObj, 'sides', id, meta)
+    saveIndex(indexObj)
+
+
+def updateIndexForAccountingStatCard(id, fname, jsData):
     '''Save side id and file name to index.json file
     '''
     indexObj = loadIndex()
-    meta = getListItemFromIndex(indexObj, 'sides', sideID)
+    meta = getListItemFromIndex(indexObj, 'sides', id)
+
+    meta["SidePseudoId"] = id
+    meta["AccountingFileName"] = fname
+    meta["AccountingError"] = jsData.Message if jsData.Success == False else ''
+    meta["AccountingWarning"] = jsData.Message
+
+    indexObj = setListItemToIndex(indexObj, 'sides', id, meta)
+    saveIndex(indexObj)
+
+
+def updateIndexForBankruptCard(id, fname, jsCardBankruptCard, sideID=''):
+    '''Save side id and file name to index.json file
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'sides', id)
 
     state = jsCardBankruptCard.obj.get(u'Result', {}).get(u'State', '')
     state = '' if state is None else state
 
-    meta["SideId"] = sideID
+    meta["SidePseudoId"] = id
     meta["BankruptFileName"] = fname
     meta["BankruptState"] = state
     meta["Error"] = jsCardBankruptCard.Message if jsCardBankruptCard.Success == False else ''
     meta["Warning"] = jsCardBankruptCard.Message
+    if sideID:
+        meta["SideId"] = sideID
 
-    indexObj = setListItemToIndex(indexObj, 'sides', sideID, meta)
+    indexObj = setListItemToIndex(indexObj, 'sides', id, meta)
     saveIndex(indexObj)
 
 
-def updateIndexForBusinessCard(sideID, fname, jsCardBusinessCard):
+def updateIndexForBusinessCard(id, fname, jsCardBusinessCard, sideID=''):
     '''Save side id and file name to index.json file
     '''
     indexObj = loadIndex()
-    meta = getListItemFromIndex(indexObj, 'sides', sideID)
+    meta = getListItemFromIndex(indexObj, 'sides', id)
 
-    meta["SideId"] = sideID
+    meta["SidePseudoId"] = id
     meta["FileName"] = fname
     meta["Name"] = jsCardBusinessCard.obj.get(u'Result', {}).get(u'Name', '')
     meta["Address"] = jsCardBusinessCard.obj.get(u'Result', {}).get(u'Address', '')
     meta["Error"] = jsCardBusinessCard.Message if jsCardBusinessCard.Success == False else ''
     meta["Warning"] = jsCardBusinessCard.Message
+    if sideID:
+        meta["SideId"] = sideID
 
-    indexObj = setListItemToIndex(indexObj, 'sides', sideID, meta)
+    indexObj = setListItemToIndex(indexObj, 'sides', id, meta)
     saveIndex(indexObj)
 
 
