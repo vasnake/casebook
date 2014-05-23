@@ -13,6 +13,7 @@ import requests
 import requests.utils
 import pickle
 import os
+import datetime
 
 import casebook
 import casebook.http
@@ -104,8 +105,6 @@ def collectSideData(session, side):
         card.accountingstat
         card.excerpt
         search.sidesdetailsex
-        search.cases    search.cases2 (for each side mentioned)
-        search.casesgj
         calendar.period
         card.bankruptcard
             case info for each case mentioned
@@ -113,13 +112,15 @@ def collectSideData(session, side):
             Founders - side info for each side mentioned
             for each founder (side)
                 search cases
+        search.cases    search.cases2 (for each side mentioned)
+        search.casesgj
     '''
     ShortName = side.get(u'ShortName', '')
     print "collectSideData, side short name: %s" % ShortName
 
     #~ отчетность POST http://casebook.ru/api/Card/AccountingStat
     #~ payload {"Organization":{"Address": ...
-    jsCardAccountingStat = cardAccountingStat(session, side)
+    __ = cardAccountingStat(session, side)
 
     #~ выписка из ЕГРЮЛ
     #~ GET http://casebook.ru/api/Card/Excerpt?Address= ...
@@ -127,7 +128,24 @@ def collectSideData(session, side):
 
     # доп.сведения
     # GET http://casebook.ru/api/Search/SidesDetailsEx?index=1&inn=1106014140&okpo=3314561
-    jsSearchSidesDetailsEx = searchSidesDetailsEx(session, side)
+    __ = searchSidesDetailsEx(session, side)
+
+    # расписание событий POST http://casebook.ru/api/Calendar/Period
+    # payload {...,"Sides":[{"Name":"ДИРЕКЦИЯ
+    __ = calendarPeriod(session, side)
+
+    # TODO: side card.bankruptcard
+    # что-то про банкротство, внутри тянет case info for each case mentioned
+    # POST http://casebook.ru/api/Card/BankruptCard
+    # payload {"Address":"169300, РЕСПУБЛИКА КОМИ...","Inn":"1106014140","Name":"ДИРЕКЦИЯ ...","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":""}
+    jsCardBankruptCard = cardBankruptCard(session, side)
+#     for x in getCasesFrom(jsCardBankruptCard):
+#         case = {} # replace None with ''
+#         for k,v in x.items():
+#             side[k] = v if v is not None else u''
+#         print "Case: %s" % case.get(u'Number', u'')
+
+    #cardBusinessCard(session, side)
 
     # TODO: collect info for each side from search results
 
@@ -176,7 +194,7 @@ def collectCaseData(session, case):
         print "Side ID: %s" % sideID
 
         #~ карточка участника POST http://casebook.ru/api/Card/BusinessCard
-        jsCardBusinessCard = cardBusinessCard(session, sideID, side)
+        jsCardBusinessCard = cardBusinessCard(session, side, sideID)
 
         #~ что-то про банкротство, не знаю POST http://casebook.ru/api/Card/BankruptCard
         jsCardBankruptCard = cardBankruptCard(session, side, sideID)
@@ -213,6 +231,28 @@ def cardJudge(session, judgeID):
     return jsCardJudge
 
 
+def calendarPeriod(session, side):
+    '''Get events schedule for side, Calendar/Period.
+    POST http://casebook.ru/api/Calendar/Period
+
+    Returns casebook.messages.JsonResponce with casebook message.
+
+    :param casebook.http.HttpSession session: HTTP session wrapper
+    :param dict side: side data from casebook.messages.JsonResponce
+    '''
+    print u"Calendar/Period for side '%s' ..." % side.get(u'ShortName', '')
+
+    payload = getCalendarPeriodPayload(side)
+    url = 'http://casebook.ru/api/Calendar/Period'
+    res = session.post(url, data=simplejson.dumps(payload))
+
+    print u"%s: %s" % (url, res.text)
+    jsRes = parseResponce(res.text)
+    stor.saveCalendarPeriod(jsRes, side)
+
+    return jsRes
+
+
 def searchSidesDetailsEx(session, side):
     '''Get side data from casebook, Search/SidesDetailsEx.
     GET http://casebook.ru/api/Search/SidesDetailsEx?index=1&inn=1106014140&okpo=3314561
@@ -221,7 +261,7 @@ def searchSidesDetailsEx(session, side):
 
     :param casebook.http.HttpSession session: HTTP session wrapper
     '''
-    print u"Search/SidesDetailsEx for ShortName '%s' ..." % side.get(u'ShortName', '')
+    print u"Search/SidesDetailsEx for side '%s' ..." % side.get(u'ShortName', '')
 
     payload = {u'index' : 1,
                u'inn'   : side.get(u'Inn', ''),
@@ -250,7 +290,7 @@ def cardExcerpt(session, side):
         &OrganizationId=0
         &StorageId=346280
     '''
-    print u"Card/Excerpt for ShortName '%s' ..." % side.get(u'ShortName', '')
+    print u"Card/Excerpt for side '%s' ..." % side.get(u'ShortName', '')
 
     payload = getSideCardPayload(side)
     payload[u'IsUnique'] = False
@@ -270,7 +310,7 @@ def cardAccountingStat(session, side):
 
     Returns messages.JsonResponce with casebook message
     '''
-    print u"Card/AccountingStat for ShortName '%s' ..." % side.get(u'ShortName', '')
+    print u"Card/AccountingStat for side '%s' ..." % side.get(u'ShortName', '')
 
     payload = getSideAccountingStatPayload(side)
     url = 'http://casebook.ru/api/Card/AccountingStat'
@@ -284,30 +324,32 @@ def cardAccountingStat(session, side):
 
 
 def cardBankruptCard(session, side, sideID=''):
-    '''Get Card/BankruptCard data from http://casebook.ru/api/Card/BankruptCard
+    '''Get side Card/BankruptCard data from casebook.ru
     and save results.
-
-    Returns messages.JsonResponce with casebook message
-
-    side: dictionary with side data from Card/Case
 
     POST http://casebook.ru/api/Card/BankruptCard
     payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
+
+    :rtype casebook.messages.JsonResponce: with casebook message
+
+    :param casebook.http.HttpSession session: HTTP session wrapper
+    :param dict side: side data from casebook.messages.JsonResponce
+    :param str sideID: obsolete
     '''
-    print u"Card/BankruptCard for side ID '%s' ..." % sideID
+    print u"Card/BankruptCard for side '%s' ..." % side.get(u'ShortName', '')
 
     payload = getSideCardPayload(side)
     url = 'http://casebook.ru/api/Card/BankruptCard'
     res = session.post(url, data=simplejson.dumps(payload))
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    print u"%s: %s" % (url, res.text)
     jsCardBankruptCard = parseResponce(res.text)
 
     stor.saveCardBankruptCard(jsCardBankruptCard, side, sideID)
     return jsCardBankruptCard
 
 
-def cardBusinessCard(session, sideID, side):
+def cardBusinessCard(session, side, sideID=''):
     '''Get Card/BusinessCard data from http://casebook.ru/api/Card/BusinessCard
     and save results.
 
@@ -318,7 +360,7 @@ def cardBusinessCard(session, sideID, side):
     POST http://casebook.ru/api/Card/BusinessCard
     payload {"Address":"Данные скрыты","Inn":"","Name":"Гурняк Я. Ф.","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}
     '''
-    print u"Card/BusinessCard for side ID '%s' ..." % sideID
+    print u"Card/BusinessCard for side '%s' ..." % side.get(u'ShortName', '')
 
     payload = getSideCardPayload(side)
     url = 'http://casebook.ru/api/Card/BusinessCard'
@@ -451,12 +493,47 @@ def  getSidesFromCase(jsCardCase):
     return caseSides
 
 
+def getCalendarPeriodPayload(side):
+    '''Returns payload dict for POST http://casebook.ru/api/Calendar/Period
+
+    :param dict side: side data from casebook
+    '''
+    qt = (u'''{"Courts":[],"Judges":[],"CaseTypeId":null,"CaseCategoryId":null,"Side":"","JudgesNames":[],'''
+          u'''"Sides":['''
+              u'''{"Name":"ДИРЕКЦИЯ ...","ShortName":"ТПП УХТАНЕФТЬ ...",'''
+              u'''"Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ...",'''
+              u'''"IsBranch":true,"IsUnique":false,"IsOriginal":true},'''
+              u'''{"Name":"ДИРЕКЦИЯ ...","ShortName":"ТПП УХТАНЕФТЬ ...", '''
+              u'''"Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ ...",'''
+              u'''"IsBranch":true,"IsUnique":false,"OrganizationId":0}'''
+          u'''],'''
+          u'''"DateFrom":"2014-04-11","DateTo":"2014-05-10"}''')
+    payload = simplejson.loads(qt)
+
+    scp = getSideCardPayload(side) # need to add ShortName, IsUnique, IsBranch, IsOriginal, OrganizationId,
+    scp[u'ShortName'] = side.get(u'ShortName', u'')
+    scp[u'IsUnique'] = side.get(u'IsUnique', False)
+    scp[u'IsBranch'] = side.get(u'IsBranch', False)
+
+    today = datetime.date.today()
+    payload[u'DateFrom'] = today.isoformat()
+    payload[u'DateTo'] = (today + datetime.timedelta(30)).isoformat()
+
+    payload[u'Sides'][0] = payload[u'Sides'][1] = scp
+    payload[u'Sides'][0][u'IsOriginal'] = side.get(u'IsOriginal', True)
+    payload[u'Sides'][1][u'OrganizationId'] = side.get(u'OrganizationId', 0)
+
+    return payload
+
+
 def getSideCardPayload(side):
-    '''Returns payload for
+    '''Returns dict payload for
     POST http://casebook.ru/api/Card/BankruptCard
     POST http://casebook.ru/api/Card/BusinessCard
+
+    Address, Inn, Name, Ogrn, Okpo, IsUnique, IsNotPrecise, OrganizationId
     '''
-    qt = u'''{"Address":"","Inn":"","Name":"","Ogrn":"","Okpo":"","IsNotPrecise":true,"OrganizationId":""}'''
+    qt = u'''{"Address":"","Inn":"","Name":"","Ogrn":"","Okpo":"","IsNotPrecise":true,"IsUnique": false,"OrganizationId":""}'''
     payload = simplejson.loads(qt)
 
     payload[u"Address"] = side.get(u'Address', u'')
@@ -464,6 +541,10 @@ def getSideCardPayload(side):
     payload[u"Name"] = side.get(u'Name', u'')
     payload[u"Ogrn"] = side.get(u'Ogrn', u'')
     payload[u"Okpo"] = side.get(u'Okpo', u'')
+
+    payload[u"IsUnique"] = side.get(u'IsUnique', False)
+    payload[u"IsNotPrecise"] = side.get(u'IsNotPrecise', True)
+    payload[u"OrganizationId"] = side.get(u'OrganizationId', u'')
 
     return payload
 
