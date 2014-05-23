@@ -17,6 +17,22 @@ import casebook
 
 CP = casebook.CP
 
+
+
+def replaceNone(inp, newval=u''):
+    '''Returns new dict with replaced None values.
+
+    :rtype dict: shallow copy of inp dict.
+
+    :param dict inp: input dictionary
+    :param obj newval: value for change None to
+    '''
+    res = {}
+    for k,v in inp.items():
+        res[k] = v if v is not None else newval
+    return res
+
+
 def getSidePseudoID(side):
     '''Returns unique string for side
     Inn + Ogrn + Okpo + Name + Address

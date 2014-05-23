@@ -20,6 +20,7 @@ import casebook.http
 import casebook.messages
 import casebook.filestor as stor
 import casebook.const as const
+import casebook.utils as utils
 
 CP = casebook.CP
 
@@ -134,20 +135,19 @@ def collectSideData(session, side):
     # payload {...,"Sides":[{"Name":"ДИРЕКЦИЯ
     __ = calendarPeriod(session, side)
 
-    # TODO: side card.bankruptcard
     # что-то про банкротство, внутри тянет case info for each case mentioned
     # POST http://casebook.ru/api/Card/BankruptCard
     # payload {"Address":"169300, РЕСПУБЛИКА КОМИ...","Inn":"1106014140","Name":"ДИРЕКЦИЯ ...","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":""}
     jsCardBankruptCard = cardBankruptCard(session, side)
-#     for x in getCasesFrom(jsCardBankruptCard):
-#         case = {} # replace None with ''
-#         for k,v in x.items():
-#             side[k] = v if v is not None else u''
-#         print "Case: %s" % case.get(u'Number', u'')
-
-    #cardBusinessCard(session, side)
+    for x in getCasesFromBancruptCard(jsCardBankruptCard):
+        case = utils.replaceNone(x)
+        case[u"CaseId"] = case.get(u'Id', u'')
+        print u"collectSideData, cardBankruptCard, goto case: %s" % case.get(u'Number', u'')
+        # TODO: side card.bankruptcard
+        collectCaseData(session, case)
 
     # TODO: collect info for each side from search results
+    #cardBusinessCard(session, side)
 
 
 def collectCaseData(session, case):
@@ -174,6 +174,14 @@ def collectCaseData(session, case):
     '''
     CaseId = case[u"CaseId"]
     print "collectCaseData, CaseId: %s" % CaseId
+    if not CaseId:
+        print "collectCaseData, CaseId is undefined, nothing to do"
+        return
+
+    # TODO: check if we already get this case today
+#     index: "cases": {
+#     "4d2b538e-bd5b-4e17-806c-0ef13c367e11": {
+#       "Updated": "2014-05-23 20:13:00"
 
     #~ карточка дела GET http://casebook.ru/api/Card/Case?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
     jsCardCase = cardCase(session, CaseId)
@@ -468,6 +476,15 @@ def findCases(session, queryString):
     #~ index.json
     stor.updateIndexForCasesSearch(queryString, fname, jsCases)
     return jsCases
+
+
+def getCasesFromBancruptCard(jsCard):
+    '''Returns list of cases from side bancrupt card.
+
+    :rtype list: list of dicts with cases data
+    :param casebook.messages.JsonResponce jsCard: object with Card/BankruptCard data
+    '''
+    return jsCard.obj[u'Result'][u'Cases']
 
 
 def getJudgesFromCase(jsCardCase):
