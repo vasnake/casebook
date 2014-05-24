@@ -15,7 +15,12 @@ import os
 
 USERNAME = os.environ.get("CASEBOOK_USER", "casebook.ru account username")
 PASSWORD = os.environ.get("CASEBOOK_PASSWORD", "secret")
+
+# Filesystem directory for downloaded files
 DATA_DIR = os.environ.get("CASEBOOK_DATA", "/tmp")
+
+# Time (seconds) to next try to download an existent case/side data
+FRESH_PERIOD = int(os.environ.get("CASEBOOK_FRESH_PERIOD", 12)) * 60 * 60
 
 COMMON_HEADERS = {"Content-Type": "application/json",
     "User-Agent": "Mozilla/5.0 (Windows NT 5.2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.149 Safari/537.36",

@@ -32,7 +32,7 @@ def main():
     # check access
     url = 'http://casebook.ru/api/Message/UnreadCount?'
     res = session.get(url)
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     js = casebook.messages.JsonResponce(res.text)
     if js.Success:
         print 'we good'
@@ -143,7 +143,7 @@ def collectSideData(session, side):
         case = utils.replaceNone(x)
         case[u"CaseId"] = case.get(u'Id', u'')
         print u"collectSideData, cardBankruptCard, goto case: %s" % case.get(u'Number', u'')
-        # TODO: side card.bankruptcard
+        # TODO: recursion!
         collectCaseData(session, case)
 
     # TODO: collect info for each side from search results
@@ -178,10 +178,10 @@ def collectCaseData(session, case):
         print "collectCaseData, CaseId is undefined, nothing to do"
         return
 
-    # TODO: check if we already get this case today
-#     index: "cases": {
-#     "4d2b538e-bd5b-4e17-806c-0ef13c367e11": {
-#       "Updated": "2014-05-23 20:13:00"
+    # check if we already get this case today
+    if caseDataIsFresh(CaseId):
+        print "collectCaseData, case data downloaded already, nothing to do"
+        return
 
     #~ карточка дела GET http://casebook.ru/api/Card/Case?id=78d283d0-010e-4c50-b1d1-cf2395c00bf9
     jsCardCase = cardCase(session, CaseId)
@@ -232,7 +232,7 @@ def cardJudge(session, judgeID):
     url = 'http://casebook.ru/api/Card/Judge/%s' % judgeID
     res = session.get(url)
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardJudge = parseResponce(res.text)
 
     stor.saveCardJudge(jsCardJudge, judgeID)
@@ -254,7 +254,7 @@ def calendarPeriod(session, side):
     url = 'http://casebook.ru/api/Calendar/Period'
     res = session.post(url, data=simplejson.dumps(payload))
 
-    print u"%s: %s" % (url, res.text)
+    #print u"%s: %s" % (url, res.text)
     jsRes = parseResponce(res.text)
     stor.saveCalendarPeriod(jsRes, side)
 
@@ -277,7 +277,7 @@ def searchSidesDetailsEx(session, side):
 
     url = 'http://casebook.ru/api/Search/SidesDetailsEx'
     res = session.get(url, params=payload)
-    print u"%s: %s" % (url, res.text)
+    #print u"%s: %s" % (url, res.text)
 
     jsRes = parseResponce(res.text)
     stor.saveSearchSidesDetailsEx(jsRes, side)
@@ -324,7 +324,7 @@ def cardAccountingStat(session, side):
     url = 'http://casebook.ru/api/Card/AccountingStat'
     res = session.post(url, data=simplejson.dumps(payload))
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardAccountingStat = parseResponce(res.text)
 
     stor.saveCardAccountingStat(jsCardAccountingStat, side)
@@ -350,7 +350,7 @@ def cardBankruptCard(session, side, sideID=''):
     url = 'http://casebook.ru/api/Card/BankruptCard'
     res = session.post(url, data=simplejson.dumps(payload))
 
-    print u"%s: %s" % (url, res.text)
+    #print u"%s: %s" % (url, res.text)
     jsCardBankruptCard = parseResponce(res.text)
 
     stor.saveCardBankruptCard(jsCardBankruptCard, side, sideID)
@@ -374,7 +374,7 @@ def cardBusinessCard(session, side, sideID=''):
     url = 'http://casebook.ru/api/Card/BusinessCard'
     res = session.post(url, data=simplejson.dumps(payload))
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardBusinessCard = parseResponce(res.text)
 
     stor.saveCardBusinessCard(jsCardBusinessCard, side, sideID)
@@ -405,7 +405,7 @@ def cardCaseDocuments(session, CaseId):
     payload = {'id': CaseId}
     res = session.get(url, params=payload)
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardCaseDocuments = parseResponce(res.text)
 
     stor.saveCardCaseDocuments(jsCardCaseDocuments, CaseId)
@@ -423,7 +423,7 @@ def cardCase(session, CaseId):
     payload = {'id': CaseId}
     res = session.get(url, params=payload)
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardCase = parseResponce(res.text)
 
     stor.saveCardCase(jsCardCase, CaseId)
@@ -441,7 +441,7 @@ def findSides(session, queryString):
     payload = {'name': queryString}
     res = session.get(url, params=payload)
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsSides = parseResponce(res.text)
 
     #~ Результат каждого запроса сохраняется в файл по шаблону:
@@ -466,7 +466,7 @@ def findCases(session, queryString):
     payload[u"Query"] = queryString
     res = session.post(url, data=simplejson.dumps(payload))
 
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCases = parseResponce(res.text)
 
     #~ Результат каждого запроса сохраняется в файл по шаблону:
@@ -478,11 +478,32 @@ def findCases(session, queryString):
     return jsCases
 
 
+def caseDataIsFresh(cid):
+    '''Returns True if case data registered in index file and
+    timestamp no older then const.FRESH_PERIOD
+
+    :param str cid: case ID, e.g. "4d2b538e-bd5b-4e17-806c-0ef13c367e11"
+    :rtype bool
+    '''
+    idx = stor.loadIndex()
+    casemeta = stor.getListItemFromIndex(idx, 'cases', cid)
+    ts = casemeta .get('Updated', '')
+
+    if not ts:
+        return False
+
+    se = utils.secondsElapsed(ts)
+    if se > const.FRESH_PERIOD:
+        return False
+    return True
+
+
 def getCasesFromBancruptCard(jsCard):
     '''Returns list of cases from side bancrupt card.
+    Case is a dict.
 
-    :rtype list: list of dicts with cases data
     :param casebook.messages.JsonResponce jsCard: object with Card/BankruptCard data
+    :rtype list
     '''
     return jsCard.obj[u'Result'][u'Cases']
 
@@ -598,7 +619,7 @@ def logon(session, username, password):
     payload = {"SystemName": "Sps","UserName": username,"Password": password,"RememberMe": True}
     session.deleteCookies()
     res = session.post(url, data=simplejson.dumps(payload))
-    print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print (u"%s: %s" % (url, res.text)).encode(CP)
     js = casebook.messages.JsonResponce(res.text)
     if js.Success:
         print 'we good'

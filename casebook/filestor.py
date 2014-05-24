@@ -405,6 +405,8 @@ def getQueryResFromIndex(indexObj, queryString):
 
 def getListItemFromIndex(indexObj, listName, itemName):
     '''Returns index.{listName}.{itemName} dictionary from index
+
+    :rtype dict
     '''
     idxList = indexObj.get(listName, {})
     return idxList.get(itemName, {})
