@@ -379,16 +379,6 @@ def setQueryResToIndex(indexObj, queryString, qryResults):
     #~ indexObj['queries'] = idxQryList
     #~ return indexObj
 
-def setListItemToIndex(indexObj, listName, itemName, data):
-    '''Set index.{listName}.{itemName} to data.
-    Returns updated indexObj
-    '''
-    data['Updated'] = utils.getTimeStamp()
-    idxList = indexObj.get(listName, {})
-    idxList[itemName] = data
-    indexObj[listName] = idxList
-    return indexObj
-
 
 def  getCaseMetaFromIndex(indexObj, CaseId):
     '''Returns index.cases.{CaseId} dictionary from index
@@ -410,3 +400,51 @@ def getListItemFromIndex(indexObj, listName, itemName):
     '''
     idxList = indexObj.get(listName, {})
     return idxList.get(itemName, {})
+
+
+def setListItemToIndex(indexObj, listName, itemName, data):
+    '''Set index.{listName}.{itemName} to data.
+    Returns updated indexObj
+    '''
+    data['Updated'] = utils.getTimeStamp()
+    idxList = indexObj.get(listName, {})
+    idxList[itemName] = data
+    indexObj[listName] = idxList
+    return indexObj
+
+
+def ListItemIsFresh(listname, iid, freshPeriod):
+    '''Returns True if item data registered in index file and
+    timestamp is no older then freshPeriod
+
+    :param str listname: 'cases' or 'sides' list name
+    :param str iid: side or case id in index
+    :param int freshPeriod: see const.FRESH_PERIOD
+    :rtype bool
+    '''
+    idx = loadIndex()
+    meta = getListItemFromIndex(idx, listname, iid)
+    ts = meta .get('CommitTS', '')
+
+    if not ts:
+        return False
+
+    se = utils.secondsElapsed(ts)
+    if se > freshPeriod:
+        return False
+    return True
+
+
+def commit(listname, iid):
+    '''Update item timestamp
+
+    :param str listname: 'cases' or 'sides' list name
+    :param str iid: side or case id in index
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, listname, iid)
+
+    meta['CommitTS'] = utils.getTimeStamp()
+
+    indexObj = setListItemToIndex(indexObj, listname, iid, meta)
+    saveIndex(indexObj)

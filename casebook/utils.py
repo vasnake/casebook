@@ -28,8 +28,9 @@ def replaceNone(inp, newval=u''):
     :param obj newval: value for change None to
     '''
     res = {}
-    for k,v in inp.items():
-        res[k] = v if v is not None else newval
+    if isinstance(inp, dict):
+        for k,v in inp.items():
+            res[k] = v if v is not None else newval
     return res
 
 

@@ -58,6 +58,7 @@ class HttpSession(object):
         '''
         self.session.headers.update(dictHeaders)
 
+# TODO: add timeout parameter
 
     def get(self, url, **kwargs):
         '''Send HTTP GET requests and return Response object.

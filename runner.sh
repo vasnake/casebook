@@ -46,11 +46,11 @@ createRequirements() {
 execCasebookReader() {
     pushd "${PROJECT_DIR}"
     source env/bin/activate
-    export CASEBOOK_USER="user name"
-    export CASEBOOK_PASSWORD="secret"
-    export CASEBOOK_DATA="/home/valik/data/projects/casebook.ripper/data"
+    export CASEBOOK_USER="my login at casebook.ru"
+    export CASEBOOK_PASSWORD="my password"
+    export CASEBOOK_DATA="/tmp"
     export PYTHONIOENCODING=UTF-8
-    python -m casebook
+    python -u -m casebook
 }
 
 #~ createVirtualenv

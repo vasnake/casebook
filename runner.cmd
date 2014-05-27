@@ -12,10 +12,10 @@ set path=%path%;c:\d\Python27;c:\d\Python27\Scripts
 
 @REM ~ GOTO createVirtualenv
 @REM ~ GOTO installDevelop
-GOTO execCasebookReader
-
 @REM ~ GOTO makeSourceDistribution
 @REM ~ GOTO createRequirements
+
+GOTO execCasebookReader
 
 @REM ~ ################################################################################
 
@@ -50,7 +50,7 @@ set CASEBOOK_USER=user name
 set CASEBOOK_PASSWORD=secret
 set CASEBOOK_DATA=c:\d\code\git\casebook.ru\data
 set PYTHONIOENCODING=UTF-8
-python -m casebook
+python -u -m casebook
 exit
 
 :endOfScript
