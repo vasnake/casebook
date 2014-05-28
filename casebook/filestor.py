@@ -20,6 +20,17 @@ import casebook.utils as utils
 
 CP = casebook.CP
 
+def saveSearchCases4Side(jsRes, side):
+    '''Save side Search/Cases info to a file, update index
+
+    :param casebook.messages.JsonResponce jsRes: text to save
+    :param dict side: side data from casebook.messages.JsonResponce
+    '''
+    sid = utils.getSidePseudoID(side)
+    fname = saveResults2File(jsRes, sid, 'search', 'cases4side')
+    updateIndexForSearchCases4Side(sid, fname, jsRes)
+
+
 def saveCalendarPeriod(jsRes, side):
     '''Save side Calendar/Period info to a file, update index
 
@@ -143,6 +154,27 @@ def saveResults2File(jsResp, queryString, category, typeName, respType='json'):
         else:
             raise TypeError("Unknown file type: %s" % respType)
     return fname
+
+
+def updateIndexForSearchCases4Side(sid, fname, jsData):
+    '''Save side id and data file name to index.json file
+
+    :param str sid: side pseudo id
+    :param str fname: data filename
+    :param casebook.messages.JsonResponce jsData: side data
+    '''
+    indexObj = loadIndex()
+    meta = getListItemFromIndex(indexObj, 'sides', sid)
+
+    meta["SidePseudoId"] = sid
+    meta["SearchCases4SideFileName"] = fname
+    meta["SearchCases4SideError"] = jsData.Message if jsData.Success == False else ''
+    meta["SearchCases4SideWarning"] = jsData.Message
+
+    meta["SearchCases4SideTotalCount"] = jsData.obj.get(u'Result', {}).get(u'TotalCount', 0)
+
+    indexObj = setListItemToIndex(indexObj, 'sides', sid, meta)
+    saveIndex(indexObj)
 
 
 def updateIndexForCalendarPeriod(sid, fname, jsData):

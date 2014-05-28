@@ -162,6 +162,11 @@ def collectSideData(session, side, deep=2):
     #~ карточка участника POST http://casebook.ru/api/Card/BusinessCard
     jsCardBusinessCard = cardBusinessCard(session, side)
 
+    # поиск дел с участием стороны
+    # POST http://casebook.ru/api/Search/Cases
+    # payload {"StatusEx":[],"SideTypes":[],"ConsiderType":-1,"CourtType":-1,"CaseNumber":null,"CaseCategoryId":"","MonitoredStatus":-1,"Courts":[],"Instances":[],"Judges":[],"Delegate":"","StateOrganizations":[],"DateFrom":null,"DateTo":null,"SessionFrom":null,"SessionTo":null,"FinalDocFrom":null,"FinalDocTo":null,"MinSum":0,"MaxSum":-1,"Sides":[{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsBranch":true}],"CoSides":[],"Accuracy":0,"Page":1,"Count":30,"OrderBy":"incoming_date_ts desc","JudgesNames":[]}
+    __ = searchCases4Side(session, side)
+
     stor.commit('sides', sid)
 
     bankruptCases = getCasesFromBancruptCard(jsCardBankruptCard)
@@ -190,12 +195,8 @@ def collectSideData(session, side, deep=2):
             traceback.print_exc(file=sys.stderr)
 
     # TODO: collect info side
-#     POST http://casebook.ru/api/Search/Cases
-#     payload  {"StatusEx":[],"SideTypes":[],"ConsiderType":-1,"CourtType":-1,"CaseNumber":null,"CaseCategoryId":"","MonitoredStatus":-1,"Courts":[],"Instances":[],"Judges":[],"Delegate":"","StateOrganizations":[],"DateFrom":null,"DateTo":null,"SessionFrom":null,"SessionTo":null,"FinalDocFrom":null,"FinalDocTo":null,"MinSum":0,"MaxSum":-1,"Sides":[{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","Okpo":"3314561","Region":"Республика Коми"}],"CoSides":[],"ExcludeInn":false,"Accuracy":2,"Page":1,"Count":5,"JudgesNames":[],"Query":"ОАО «ЛУКОЙЛ-Коми» (ИНН 1106014140 )","Index":1}
-#     payload2 {"StatusEx":[],"SideTypes":[],"ConsiderType":-1,"CourtType":-1,"CaseNumber":null,"CaseCategoryId":"","MonitoredStatus":-1,"Courts":[],"Instances":[],"Judges":[],"Delegate":"","StateOrganizations":[],"DateFrom":null,"DateTo":null,"SessionFrom":null,"SessionTo":null,"FinalDocFrom":null,"FinalDocTo":null,"MinSum":0,"MaxSum":-1,"Sides":[{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsBranch":true}],"CoSides":[],"Accuracy":0,"Page":1,"Count":30,"OrderBy":"incoming_date_ts desc","JudgesNames":[]}
-
-#     POST http://casebook.ru/api/Search/CasesGj
-#     payload{"CoSides":[],"Count":30,"DateFrom":null,"DateTo":null,"OrderBy":"incoming_date_ts desc","Page":1,"Sides":[{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsBranch":true}],"CaseTypeId":"","Courts":[]}
+    #     POST http://casebook.ru/api/Search/CasesGj
+    #     payload{"CoSides":[],"Count":30,"DateFrom":null,"DateTo":null,"OrderBy":"incoming_date_ts desc","Page":1,"Sides":[{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsBranch":true}],"CaseTypeId":"","Courts":[]}
 
 
 def collectCaseData(session, case):
@@ -285,11 +286,42 @@ def cardJudge(session, judgeID):
     return jsCardJudge
 
 
+def searchCases4Side(session, side):
+    '''Search cases with given side.
+    Returns casebook.ru message with list of cases.
+
+    POST http://casebook.ru/api/Search/Cases
+    payload example: {"StatusEx":[],"SideTypes":[],"ConsiderType":-1,"CourtType":-1,
+        "CaseNumber":null,"CaseCategoryId":"","MonitoredStatus":-1,"Courts":[],
+        "Instances":[],"Judges":[],"Delegate":"","StateOrganizations":[],"DateFrom":null,
+        "DateTo":null,"SessionFrom":null,"SessionTo":null,"FinalDocFrom":null,"FinalDocTo":null,
+        "MinSum":0,"MaxSum":-1,"Sides":[{"Name":"ДИРЕКЦИЯ ...","ShortName":"ТПП ...",
+        "Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСП...",
+        "IsUnique":false,"IsOriginal":true,"IsBranch":true}],
+        "CoSides":[],"Accuracy":0,"Page":1,"Count":30,"OrderBy":"incoming_date_ts desc","JudgesNames":[]}
+
+    :param casebook.http.HttpSession session: HTTP session wrapper
+    :param dict side: side data from casebook.messages.JsonResponce
+    :rtype casebook.messages.JsonResponce
+    '''
+    print u"Search/Cases for side '%s' ..." % sideShortName(side)
+
+    payload = getSearchCases4SidePayload(side)
+    url = 'http://casebook.ru/api/Search/Cases'
+    res = session.post(url, data=postData(payload))
+
+    #print u"%s: %s" % (url, res.text)
+    jsRes = parseResponce(res.text)
+    stor.saveSearchCases4Side(jsRes, side)
+
+    return jsRes
+
+
 def calendarPeriod(session, side):
     '''Get events schedule for side, Calendar/Period.
-    POST http://casebook.ru/api/Calendar/Period
-
     Returns casebook.messages.JsonResponce with casebook message.
+
+    POST http://casebook.ru/api/Calendar/Period
 
     :param casebook.http.HttpSession session: HTTP session wrapper
     :param dict side: side data from casebook.messages.JsonResponce
@@ -618,10 +650,70 @@ def  getSidesFromCase(jsCardCase):
     return caseSides
 
 
+def getSearchCases4SidePayload(side):
+    '''Returns payload dict for POST http://casebook.ru/api/Search/Cases
+
+    Search cases for side.
+
+    :param dict side: side data from casebook.messages.JsonResponce
+    :rtype dict
+    '''
+    qt = u'''
+    {
+      "StatusEx": [],
+      "SideTypes": [],
+      "ConsiderType": -1,
+      "CourtType": -1,
+      "CaseNumber": null,
+      "CaseCategoryId": "",
+      "MonitoredStatus": -1,
+      "Courts": [],
+      "Instances": [],
+      "Judges": [],
+      "Delegate": "",
+      "StateOrganizations": [],
+      "DateFrom": null,
+      "DateTo": null,
+      "SessionFrom": null,
+      "SessionTo": null,
+      "FinalDocFrom": null,
+      "FinalDocTo": null,
+      "MinSum": 0,
+      "MaxSum": -1,
+      "Sides": [
+        {
+          "Name": "ДИРЕКЦИЯ ...",
+          "ShortName": "ТПП ...",
+          "Inn": "1106014140",
+          "Ogrn": "1021100895760",
+          "Okpo": "3314561",
+          "Address": "169300, РЕСП...",
+          "IsUnique": false,
+          "IsOriginal": true,
+          "IsBranch": true
+        }
+      ],
+      "CoSides": [],
+      "Accuracy": 0,
+      "Page": 1,
+      "Count": 30,
+      "OrderBy": "incoming_date_ts desc",
+      "JudgesNames": []
+    }
+    '''
+    payload = utils.fromJson(qt)
+
+    sides = getCalendarPeriodPayload(side).get(u'Sides', [])
+    payload[u'Sides'] = sides
+
+    return payload
+
+
 def getCalendarPeriodPayload(side):
     '''Returns payload dict for POST http://casebook.ru/api/Calendar/Period
 
     :param dict side: side data from casebook
+    :rtype dict
     '''
     qt = (u'''{"Courts":[],"Judges":[],"CaseTypeId":null,"CaseCategoryId":null,"Side":"","JudgesNames":[],'''
           u'''"Sides":['''
