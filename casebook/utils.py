@@ -12,11 +12,38 @@ Created on May 20, 2014
 '''
 
 import time
+import simplejson
 
 import casebook
 
 CP = casebook.CP
 
+
+def fromJson(data):
+    '''Returns object restored from JSON
+
+    :param str data:
+    :rtype obj
+    '''
+    return simplejson.loads(data)
+
+def toJson(data):
+    '''Returns data serialized to JSON
+
+    :param obj data: data object to serialize
+    :rtype str
+    '''
+    return simplejson.dumps(data, ensure_ascii=False, indent='  ', sort_keys=True)
+
+def toJsonCompact(data, unicodeStr=True):
+    '''Returns data serialized to JSON.
+    Compact mode.
+
+    :param obj data: data object to serialize
+    :param bool unicodeStr: set to False if you need ascii output
+    :rtype str
+    '''
+    return simplejson.dumps(data, separators=(',', ':'), ensure_ascii=(not unicodeStr), sort_keys=True)
 
 
 def replaceNone(inp, newval=u''):

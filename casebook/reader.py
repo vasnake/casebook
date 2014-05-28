@@ -143,7 +143,8 @@ def collectSideData(session, side, deep=2):
 
     #~ выписка из ЕГРЮЛ
     #~ GET http://casebook.ru/api/Card/Excerpt?Address= ...
-    cardExcerpt(session, side)
+    # TODO: uncomment
+#     cardExcerpt(session, side)
 
     # доп.сведения
     # GET http://casebook.ru/api/Search/SidesDetailsEx?index=1&inn=1106014140&okpo=3314561
@@ -297,7 +298,7 @@ def calendarPeriod(session, side):
 
     payload = getCalendarPeriodPayload(side)
     url = 'http://casebook.ru/api/Calendar/Period'
-    res = session.post(url, data=simplejson.dumps(payload))
+    res = session.post(url, data=postData(payload))
 
     #print u"%s: %s" % (url, res.text)
     jsRes = parseResponce(res.text)
@@ -361,13 +362,15 @@ def cardAccountingStat(session, side):
     '''Get side data from casebook. отчетность.
     POST http://casebook.ru/api/Card/AccountingStat
 
+    Side must have been set Inn, Ogrn or Okpo parameters.
+
     Returns messages.JsonResponce with casebook message
     '''
     print u"Card/AccountingStat for side '%s' ..." % sideShortName(side)
 
     payload = getSideAccountingStatPayload(side)
     url = 'http://casebook.ru/api/Card/AccountingStat'
-    res = session.post(url, data=simplejson.dumps(payload))
+    res = session.post(url, data=postData(payload))
 
     #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardAccountingStat = parseResponce(res.text)
@@ -393,7 +396,7 @@ def cardBankruptCard(session, side, sideID=''):
 
     payload = getSideCardPayload(side)
     url = 'http://casebook.ru/api/Card/BankruptCard'
-    res = session.post(url, data=simplejson.dumps(payload))
+    res = session.post(url, data=postData(payload))
 
     #print u"%s: %s" % (url, res.text)
     jsCardBankruptCard = parseResponce(res.text)
@@ -417,7 +420,7 @@ def cardBusinessCard(session, side, sideID=''):
 
     payload = getSideCardPayload(side)
     url = 'http://casebook.ru/api/Card/BusinessCard'
-    res = session.post(url, data=simplejson.dumps(payload))
+    res = session.post(url, data=postData(payload))
 
     #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCardBusinessCard = parseResponce(res.text)
@@ -505,11 +508,11 @@ def findCases(session, queryString):
     '''
     print (u"casesBy '%s' ..." % queryString).encode(CP)
 
-    url = 'http://casebook.ru/api/Search/Cases'
     qt = const.CASES_QUERY_TEMPLATE
     payload = simplejson.loads(qt)
     payload[u"Query"] = queryString
-    res = session.post(url, data=simplejson.dumps(payload))
+    url = 'http://casebook.ru/api/Search/Cases'
+    res = session.post(url, data=postData(payload))
 
     #print (u"%s: %s" % (url, res.text)).encode(CP)
     jsCases = parseResponce(res.text)
@@ -521,6 +524,15 @@ def findCases(session, queryString):
     #~ index.json
     stor.updateIndexForCasesSearch(queryString, fname, jsCases)
     return jsCases
+
+
+def postData(payload):
+    '''Returns JSON string for casebook POST requests payload.
+
+    :param dict payload:
+    :rtype str
+    '''
+    return utils.toJsonCompact(payload, False)
 
 
 def sideShortName(side):
@@ -694,8 +706,9 @@ def logon(session, username, password):
     url = 'http://casebook.ru/api/Account/LogOn'
     payload = {"SystemName": "Sps","UserName": username,"Password": password,"RememberMe": True}
     session.deleteCookies()
-    res = session.post(url, data=simplejson.dumps(payload))
+    res = session.post(url, data=postData(payload))
     #print (u"%s: %s" % (url, res.text)).encode(CP)
+
     js = casebook.messages.JsonResponce(res.text)
     if js.Success:
         print 'we good'

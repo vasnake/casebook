@@ -16,6 +16,8 @@ import pickle
 import os
 
 import casebook
+import casebook.const as const
+import casebook.utils as utils
 
 CP = casebook.CP
 
@@ -58,23 +60,43 @@ class HttpSession(object):
         '''
         self.session.headers.update(dictHeaders)
 
-# TODO: add timeout parameter
 
     def get(self, url, **kwargs):
         '''Send HTTP GET requests and return Response object.
         http://docs.python-requests.org/en/latest/api/#requests.Response
+
+        http://requests.readthedocs.org/en/latest/user/quickstart/#timeouts
+        http://docs.python-requests.org/en/latest/api/#requests.request
+        http://stackoverflow.com/questions/21965484/timeout-for-python-requests-get-entire-response
         '''
+        if not kwargs.get('timeout', ''):
+            kwargs['timeout'] = const.REQUESTS_TIMEOUT
+
+        print u"HttpSession.get from '%s' with params '%s'" % (url, utils.toJsonCompact(kwargs))
         res = self.session.get(url, **kwargs)
+        # print u"%s" % res.text
+
         return res
 
 
-    def post(self, url, data=None):
+    def post(self, url, data=None, **kwargs):
         '''Send HTTP POST requests and return Response object.
         data parameter may be dict or JSON string, representing POST data.
 
         http://docs.python-requests.org/en/latest/user/quickstart/#more-complicated-post-requests
         http://docs.python-requests.org/en/latest/api/#requests.Response
         '''
-        res = self.session.post(url, data=data)
+        if not kwargs.get('timeout', ''):
+            kwargs['timeout'] = const.REQUESTS_TIMEOUT
+
+
+        td = utils.fromJson(data) if isinstance(data, str) else data
+        td = utils.toJsonCompact(td)
+        print u"HttpSession.post from '%s', data '%s', with params '%s'" % (url, td,
+            utils.toJsonCompact(kwargs))
+
+        res = self.session.post(url, data=data, **kwargs)
+        # print u"%s" % res.text
+
         return res
 # class httpSession(object):

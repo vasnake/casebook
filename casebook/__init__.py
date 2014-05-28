@@ -28,4 +28,4 @@ class RequestError(Exception):
         s = []
         for k,v in self.value.items():
             s.append(u"%s: %s" % (k, v))
-        return u'; '.join(s)
+        return (u'; '.join(s)).encode(CP)
