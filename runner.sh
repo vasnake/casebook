@@ -55,7 +55,6 @@ execCasebookReader() {
     export CASEBOOK_REQ_TIMEOUT=60
     # Recursion limit
     export CASEBOOK_RECUR=2
-    export CASEBOOK_CODEPAGE=UTF-8
     export PYTHONIOENCODING=UTF-8
     python -u -m casebook
 }

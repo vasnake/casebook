@@ -215,18 +215,16 @@ def collectCaseData(session, case, deep=2):
         Card.PdfDocumentArchiveCaseCount - just num of docs - skip it
         card.casedocuments
         File.PdfDocumentArchiveCase
-        for each side
-            collectSideData
         for each judge
             Card.Judge
+        for each side
+            collectSideData
 
     URLs:
         GET http://casebook.ru/api/Card/Case
         GET http://casebook.ru/api/Card/CaseDocuments
         GET http://casebook.ru/File/PdfDocumentArchiveCase
         GET http://casebook.ru/api/Card/Judge
-        POST http://casebook.ru/api/Card/BusinessCard
-        POST http://casebook.ru/api/Card/BankruptCard
 
     :param casebook.http.HttpSession session: HTTP session wrapper
     :param dict case: case data from casebook.messages.JsonResponce
