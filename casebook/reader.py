@@ -30,12 +30,12 @@ def main():
     # check access
     url = 'http://casebook.ru/api/Message/UnreadCount?'
     res = session.get(url)
-    #print (u"%s: %s" % (url, res.text)).encode(CP)
+    #print u"%s: %s" % (url, res.text)
     js = casebook.messages.JsonResponce(res.text)
     if js.Success:
         print 'we good'
     else:
-        print (u"Auth. need to be done. Message: %s" % js.Message).encode(CP)
+        print u"Auth. need to be done. Message: %s" % js.Message
         session = logon(session, const.USERNAME, const.PASSWORD)
 
     # read input and make queries
@@ -43,7 +43,7 @@ def main():
     with open(inputFileName) as f:
         for x in f:
             x = x.decode(CP).strip()
-            print (u"input: '%s'" % x).encode(CP)
+            print u"input: '%s'" % x
             if x and x[0] != u'#':
                 getCasesAndSides(session, x)
 
@@ -199,7 +199,10 @@ def collectSideData(session, side, deep=2):
         bside = utils.replaceNone(x)
         print u"collectSideData, cardBusinessCard, goto side: %s" % sideShortName(bside)
         # complex method, get data recursively
-        collectSideData(session, bside, deep-1)
+        try:
+            collectSideData(session, bside, deep-1)
+        except casebook.RequestError:
+            print u"collectSideData, cardBusinessCard, error while processing current side"
 
     stor.commit('sides', sid)
 
@@ -269,7 +272,10 @@ def collectCaseData(session, case, deep=2):
         side = utils.replaceNone(x)
         print "collectCaseData, case sides, goto Side: %s" % sideShortName(side)
         # complex method, get data recursively (BusinessCard, BankruptCard)
-        collectSideData(session, side, deep-1)
+        try:
+            collectSideData(session, side, deep-1)
+        except casebook.RequestError:
+            print u"collectCaseData, cardCase, error while processing current side"
 
     stor.commit('cases', CaseId)
 
@@ -422,7 +428,7 @@ def cardExcerpt(session, side):
     url = 'http://casebook.ru/api/Card/Excerpt'
     res = session.get(url, params=payload, stream=True)
 
-    print (u"%s: %s" % (url, res.status_code)).encode(CP)
+    print u"%s: %s" % (url, res.status_code)
     stor.saveCardExcerpt(res, side)
 
 
@@ -506,7 +512,7 @@ def filePdfDocumentArchiveCase(session, CaseId):
     url = 'http://casebook.ru/File/PdfDocumentArchiveCase/%s/%s.caseDocs.zip' % (CaseId, CaseId)
     res = session.get(url, stream=True)
 
-    print (u"%s: %s" % (url, res.status_code)).encode(CP)
+    print u"%s: %s" % (url, res.status_code)
     stor.saveFilePdfDocumentArchiveCase(res, CaseId)
 
 
@@ -551,7 +557,7 @@ def findSides(session, queryString):
     and save results.
     Returns messages.JsonResponce with casebook message
     '''
-    print (u"sidesBy '%s' ..." % queryString).encode(CP)
+    print u"sidesBy '%s' ..." % queryString
 
     url = 'http://casebook.ru/api/Search/Sides'
     payload = {'name': queryString}
@@ -574,7 +580,7 @@ def findCases(session, queryString):
     and save results.
     Returns messages.JsonResponce with casebook message
     '''
-    print (u"casesBy '%s' ..." % queryString).encode(CP)
+    print u"casesBy '%s' ..." % queryString
 
     qt = const.CASES_QUERY_TEMPLATE
     payload = simplejson.loads(qt)
@@ -862,7 +868,7 @@ def parseResponce(text):
     else:
         print u"responce: %s" % text
         err = u"Request failed. Message: %s" % js.Message
-        print err.encode(CP)
+        print err
         raise casebook.RequestError({'message': err, 'responce': text})
     return js
 
@@ -883,7 +889,7 @@ def logon(session, username, password):
         print 'we good'
     else:
         err = u"Auth failed. Message: %s" % js.Message
-        print err.encode(CP)
+        print err
         raise casebook.LogOnError(err)
 
     return session

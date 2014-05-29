@@ -27,8 +27,6 @@ FRESH_PERIOD = int(os.environ.get("CASEBOOK_FRESH_PERIOD", 12)) * 60 * 60
 # http://docs.python-requests.org/en/latest/api/#behavioral-changes
 REQUESTS_TIMEOUT = int(os.environ.get("CASEBOOK_REQ_TIMEOUT", 60))
 
-CP = os.environ.get("CASEBOOK_CODEPAGE", 'utf-8')
-
 # Recursion limit
 DEEP = int(os.environ.get("CASEBOOK_RECUR", 2))
 
@@ -52,3 +50,5 @@ CASES_QUERY_TEMPLATE = u'''
         "OrderBy":"incoming_date_ts desc",
         "Query":"ОАО ГАЗПРОМБАНК"}
 '''
+
+CP = 'UTF-8'

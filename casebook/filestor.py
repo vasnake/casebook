@@ -155,7 +155,7 @@ def saveResults2File(jsResp, queryString, category, typeName, respType='json'):
     '''
     qid = utils.stringToFileName(queryString)
     fname = os.path.join(const.DATA_DIR, "%s.%s.%s.%s" % (category, qid, typeName, respType))
-    print (u"write result to file '%s'" % fname).encode(CP)
+    print u"write result to file '%s'" % fname
 
     with open(fname, 'wb') as f:
         if respType == 'json':
