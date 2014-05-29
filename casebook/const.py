@@ -27,6 +27,11 @@ FRESH_PERIOD = int(os.environ.get("CASEBOOK_FRESH_PERIOD", 12)) * 60 * 60
 # http://docs.python-requests.org/en/latest/api/#behavioral-changes
 REQUESTS_TIMEOUT = int(os.environ.get("CASEBOOK_REQ_TIMEOUT", 60))
 
+CP = os.environ.get("CASEBOOK_CODEPAGE", 'utf-8')
+
+# Recursion limit
+DEEP = int(os.environ.get("CASEBOOK_RECUR", 2))
+
 COMMON_HEADERS = {"Content-Type": "application/json",
     "User-Agent": "Mozilla/5.0 (Windows NT 5.2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.149 Safari/537.36",
     "X-Requested-With": "XMLHttpRequest",

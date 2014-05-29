@@ -49,6 +49,13 @@ call env\scripts\activate.bat
 set CASEBOOK_USER=user name
 set CASEBOOK_PASSWORD=secret
 set CASEBOOK_DATA=c:\d\code\git\casebook.ru\data
+@REM Time in hours to next try to download an existent case/side data
+set CASEBOOK_FRESH_PERIOD=12
+@REM Time in seconds, stop waiting for a responce after x seconds
+set CASEBOOK_REQ_TIMEOUT=60
+@REM Recursion limit
+set CASEBOOK_RECUR=2
+set CASEBOOK_CODEPAGE=UTF-8
 set PYTHONIOENCODING=UTF-8
 python -u -m casebook
 exit

@@ -49,6 +49,13 @@ execCasebookReader() {
     export CASEBOOK_USER="my login at casebook.ru"
     export CASEBOOK_PASSWORD="my password"
     export CASEBOOK_DATA="/tmp"
+    # Time in hours to next try to download an existent case/side data
+    export CASEBOOK_FRESH_PERIOD=12
+    # Time in seconds, stop waiting for a responce after x seconds
+    export CASEBOOK_REQ_TIMEOUT=60
+    # Recursion limit
+    export CASEBOOK_RECUR=2
+    export CASEBOOK_CODEPAGE=UTF-8
     export PYTHONIOENCODING=UTF-8
     python -u -m casebook
 }

@@ -11,13 +11,9 @@
 import os
 import sys
 import simplejson
-import requests
-import requests.utils
-import pickle
 import datetime
 import traceback
 
-import casebook
 import casebook.http
 import casebook.messages
 import casebook.filestor as stor
@@ -67,11 +63,12 @@ def getCasesAndSides(session, queryString):
     Дополнительно, информация о запросе/ответе сохраняется в индексный файл:
         index.json
     '''
-    # TODO: uncomment
-#     jsCases = findCases(session, queryString)
+    # TODO: search cases GJ
+
+    jsCases = findCases(session, queryString)
     jsSides = findSides(session, queryString)
 
-    #~ forEachCase(session, jsCases)
+    forEachCase(session, jsCases)
     forEachSide(session, jsSides)
 
 
@@ -86,7 +83,7 @@ def forEachSide(session, jsSides):
     sidesList = jsSides.obj[u'Result']
     for side in sidesList:
         try:
-            collectSideData(session, side)
+            collectSideData(session, side, const.DEEP)
         except casebook.RequestError:
             print u"forEachSide, error while processing current side"
             traceback.print_exc(file=sys.stderr)
@@ -103,7 +100,7 @@ def forEachCase(session, jsCases):
     casesList = jsCases.obj[u'Result'][u'Items']
     for case in casesList:
         try:
-            collectCaseData(session, case)
+            collectCaseData(session, case, const.DEEP)
         except casebook.RequestError:
             print u"forEachCase, error while processing current case"
             traceback.print_exc(file=sys.stderr)
@@ -120,9 +117,25 @@ def collectSideData(session, side, deep=2):
         card.bankruptcard
             case info for each case mentioned
         card.businesscard
-            Founders, AffiliatedOrganizations - side info for each side mentioned
-        search.cases, search.cases2 (for each side mentioned)
+            side info for each side mentioned
+        search.cases2
+            case info for each: todo?
         search.casesgj
+            case info for each: todo?
+
+    URLs:
+        GET http://casebook.ru/api/Card/Excerpt
+        GET http://casebook.ru/api/Search/SidesDetailsEx
+        POST http://casebook.ru/api/Card/AccountingStat
+        POST http://casebook.ru/api/Calendar/Period
+        POST http://casebook.ru/api/Card/BankruptCard
+        POST http://casebook.ru/api/Card/BusinessCard
+        POST http://casebook.ru/api/Search/Cases
+        POST http://casebook.ru/api/Search/CasesGj
+
+    :param casebook.http.HttpSession session: HTTP session wrapper
+    :param dict side: side data from casebook.messages.JsonResponce
+    :param bool deep: recursion limit
     '''
     if deep <= 0:
         print u"collectSideData, end of recursion"
@@ -143,8 +156,7 @@ def collectSideData(session, side, deep=2):
 
     #~ выписка из ЕГРЮЛ
     #~ GET http://casebook.ru/api/Card/Excerpt?Address= ...
-    # TODO: uncomment
-#     cardExcerpt(session, side)
+    cardExcerpt(session, side)
 
     # доп.сведения
     # GET http://casebook.ru/api/Search/SidesDetailsEx?index=1&inn=1106014140&okpo=3314561
@@ -164,10 +176,13 @@ def collectSideData(session, side, deep=2):
 
     # поиск дел с участием стороны
     # POST http://casebook.ru/api/Search/Cases
-    # payload {"StatusEx":[],"SideTypes":[],"ConsiderType":-1,"CourtType":-1,"CaseNumber":null,"CaseCategoryId":"","MonitoredStatus":-1,"Courts":[],"Instances":[],"Judges":[],"Delegate":"","StateOrganizations":[],"DateFrom":null,"DateTo":null,"SessionFrom":null,"SessionTo":null,"FinalDocFrom":null,"FinalDocTo":null,"MinSum":0,"MaxSum":-1,"Sides":[{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsBranch":true}],"CoSides":[],"Accuracy":0,"Page":1,"Count":30,"OrderBy":"incoming_date_ts desc","JudgesNames":[]}
+    # payload {"StatusEx":[],"SideTypes":[],"ConsiderType":-1,"CourtType":-1,"CaseNumber":null,"CaseCategoryId":"","MonitoredStatus":-1,"Courts":[],"Instances":[],"Judges":[],"Delegate":"","StateOrganizations":[],"DateFrom":null,"DateTo":null,"SessionFrom":null,"SessionTo":null,"FinalDocFrom":null,"FinalDocTo":null,"MinSum":0,"MaxSum":-1,"Sides":[{"Name":"ДИРЕКЦИЯ ...","ShortName":"ТПП ...","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСП...","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИР...","ShortName":"ТПП ...","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСП...","IsBranch":true}],"CoSides":[],"Accuracy":0,"Page":1,"Count":30,"OrderBy":"incoming_date_ts desc","JudgesNames":[]}
     __ = searchCases4Side(session, side)
 
-    stor.commit('sides', sid)
+    # поиск дел общей юрисдикции
+    # POST http://casebook.ru/api/Search/CasesGj
+    # payload {"CoSides":[],"Count":30,"DateFrom":null,"DateTo":null,"OrderBy":"incoming_date_ts desc","Page":1,"Sides":[{"Name":"ДИРЕКЦИЯ...","ShortName":"ТПП ...","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСП...","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ ...","ShortName":"ТПП ...","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСП...","IsBranch":true}],"CaseTypeId":"","Courts":[]}
+    __ = searchCasesGj4Side(session, side)
 
     bankruptCases = getCasesFromBancruptCard(jsCardBankruptCard)
     print "collectSideData, num of cases in bankruptCard: %s" % len(bankruptCases)
@@ -176,11 +191,7 @@ def collectSideData(session, side, deep=2):
         case[u"CaseId"] = case.get(u'Id', u'')
         print u"collectSideData, cardBankruptCard, goto case: %s" % case.get(u'Number', u'')
         # complex method, recursion
-        try:
-            collectCaseData(session, case)
-        except casebook.RequestError:
-            print u"collectSideData, cardBankruptCard, error while processing current case"
-            traceback.print_exc(file=sys.stderr)
+        collectCaseData(session, case, deep-1)
 
     businessSides = getSidesFromBusinessCard(jsCardBusinessCard)
     print "collectSideData, num of sides in businessCard: %s" % len(businessSides)
@@ -188,18 +199,12 @@ def collectSideData(session, side, deep=2):
         bside = utils.replaceNone(x)
         print u"collectSideData, cardBusinessCard, goto side: %s" % sideShortName(bside)
         # complex method, get data recursively
-        try:
-            collectSideData(session, bside, deep-1)
-        except casebook.RequestError:
-            print u"collectSideData, cardBusinessCard, error while processing current side"
-            traceback.print_exc(file=sys.stderr)
+        collectSideData(session, bside, deep-1)
 
-    # TODO: collect info side
-    #     POST http://casebook.ru/api/Search/CasesGj
-    #     payload{"CoSides":[],"Count":30,"DateFrom":null,"DateTo":null,"OrderBy":"incoming_date_ts desc","Page":1,"Sides":[{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ СОЗДАЮЩЕГОСЯ ПРЕДРИЯТИЯ ТЕРРИТОРИАЛЬНО-ПРОИЗВОДСТВЕННОЕ ПРЕДПРИЯТИЕ \"УХТАНЕФТЬ\" - СТРУКТУРНОЕ ПОДРАЗДЕЛЕНИЕ ООО \"ЛУКОЙЛ-КОМИ\"","ShortName":"ТПП \"УХТАНЕФТЬ\" СТРУКТ.ПОДРАЗД-Е ООО \"ЛУКОЙЛ-КОМИ\"","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСПУБЛИКА КОМИ, Г УХТА, УЛ ОКТЯБРЬСКАЯ, Д 11","IsBranch":true}],"CaseTypeId":"","Courts":[]}
+    stor.commit('sides', sid)
 
 
-def collectCaseData(session, case):
+def collectCaseData(session, case, deep=2):
     '''Collect all information for given case.
 
     Sequence:
@@ -208,8 +213,7 @@ def collectCaseData(session, case):
         card.casedocuments
         File.PdfDocumentArchiveCase
         for each side
-            card.businesscard
-            card.bankruptcard
+            collectSideData
         for each judge
             Card.Judge
 
@@ -220,7 +224,15 @@ def collectCaseData(session, case):
         GET http://casebook.ru/api/Card/Judge
         POST http://casebook.ru/api/Card/BusinessCard
         POST http://casebook.ru/api/Card/BankruptCard
+
+    :param casebook.http.HttpSession session: HTTP session wrapper
+    :param dict case: case data from casebook.messages.JsonResponce
+    :param bool deep: recursion limit
     '''
+    if deep <= 0:
+        print u"collectCaseData, end of recursion"
+        return
+
     CaseId = case[u"CaseId"]
     print "collectCaseData, CaseId: %s" % CaseId
     if not CaseId:
@@ -251,19 +263,15 @@ def collectCaseData(session, case):
         #~ карточка судьи GET http://casebook.ru/api/Card/Judge/96743d1a-ca39-4c2f-a5f2-94a2aa0c8b8f
         __ = cardJudge(session, judgeID)
 
-    stor.commit('cases', CaseId)
-
     caseSides = getSidesFromCase(jsCardCase)
     print "collectCaseData, num of case sides: %s" % len(caseSides)
     for x in caseSides:
         side = utils.replaceNone(x)
         print "collectCaseData, case sides, goto Side: %s" % sideShortName(side)
         # complex method, get data recursively (BusinessCard, BankruptCard)
-        try:
-            collectSideData(session, side)
-        except casebook.RequestError:
-            print u"collectCaseData, case sides, error while processing current side"
-            traceback.print_exc(file=sys.stderr)
+        collectSideData(session, side, deep-1)
+
+    stor.commit('cases', CaseId)
 
 
 def cardJudge(session, judgeID):
@@ -284,6 +292,34 @@ def cardJudge(session, judgeID):
 
     stor.saveCardJudge(jsCardJudge, judgeID)
     return jsCardJudge
+
+
+def searchCasesGj4Side(session, side):
+    '''Search cases GJ (общая юрисдикция) with given side.
+    Returns casebook.ru message with list of cases.
+
+    POST http://casebook.ru/api/Search/CasesGj
+    payload example: {"CoSides":[],"Count":30,"DateFrom":null,"DateTo":null,"OrderBy":"incoming_date_ts desc",
+        "Page":1,"Sides":[{"Name":"ДИРЕКЦИЯ...","ShortName":"ТПП ...","Inn":"1106014140",
+        "Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСП...","IsUnique":false,
+        "IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ ...","ShortName":"ТПП ...",
+        "Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,
+        "OrganizationId":0,"Address":"169300, РЕСП...","IsBranch":true}],"CaseTypeId":"","Courts":[]}
+
+    :param session:
+    :param side:
+    '''
+    print u"Search/CasesGj for side '%s' ..." % sideShortName(side)
+
+    payload = getSearchCasesGj4SidePayload(side)
+    url = 'http://casebook.ru/api/Search/CasesGj'
+    res = session.post(url, data=postData(payload))
+
+    #print u"%s: %s" % (url, res.text)
+    jsRes = parseResponce(res.text)
+    stor.saveSearchCasesGj4Side(jsRes, side)
+
+    return jsRes
 
 
 def searchCases4Side(session, side):
@@ -648,6 +684,47 @@ def  getSidesFromCase(jsCardCase):
         lst = jsCardCase.obj[u'Result'][u'Case'][u'Sides'][x]
         caseSides += lst
     return caseSides
+
+
+def getSearchCasesGj4SidePayload(side):
+    '''Returns payload dict for POST http://casebook.ru/api/Search/CasesGj
+
+    Search GJ cases for side.
+
+    :param dict side: side data from casebook.messages.JsonResponce
+    :rtype dict
+    '''
+    qt = u'''
+    {
+      "CoSides": [],
+      "Count": 30,
+      "DateFrom": null,
+      "DateTo": null,
+      "OrderBy": "incoming_date_ts desc",
+      "Page": 1,
+      "Sides": [
+        {
+          "Name": "ДИРЕКЦИЯ...",
+          "ShortName": "ТПП ...",
+          "Inn": "1106014140",
+          "Ogrn": "1021100895760",
+          "Okpo": "3314561",
+          "Address": "169300, РЕСП...",
+          "IsUnique": false,
+          "IsOriginal": true,
+          "IsBranch": true
+        }
+      ],
+      "CaseTypeId": "",
+      "Courts": []
+    }
+    '''
+    payload = utils.fromJson(qt)
+
+    sides = getCalendarPeriodPayload(side).get(u'Sides', [])
+    payload[u'Sides'] = sides
+
+    return payload
 
 
 def getSearchCases4SidePayload(side):

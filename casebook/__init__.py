@@ -4,7 +4,7 @@
 # Copyright (c) Valentin Fedulov <vasnake@gmail.com>
 # See COPYING for details.
 
-CP = 'utf-8'
+from casebook.const import CP
 
 class LogOnError(Exception):
     '''raise this exception when LogOn request to casebook.ru failed
@@ -23,7 +23,7 @@ class RequestError(Exception):
 
     def __str__(self):
         if not isinstance(self.value, dict):
-            return u"%s" % (self.value, )
+            return (u"%s" % (self.value, )).encode(CP)
 
         s = []
         for k,v in self.value.items():
