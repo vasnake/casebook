@@ -21,8 +21,8 @@ PROJECT_DIR is a filesystem folder where package has been unpacked.
 CASEBOOK_USER and CASEBOOK_PASSWORD is a login parameters for casebook.ru.
 CASEBOOK_DATA is a filesystem folder for store downloaded data.
 
-Install package using virtualenv. You can use runner script for that and,
-in that case, run steps createVirtualenv, installDevelop sequentially.
+Install package using virtualenv. You can use runner script for that, and
+in that case run steps createVirtualenv, installDevelop sequentially.
 
 Create text file ${CASEBOOK_DATA}/input.lst
 Each line in that file is a query string for searching cases or sides on casebook.ru.
