@@ -184,6 +184,8 @@ def collectSideData(session, side, deep=2):
     # payload {"CoSides":[],"Count":30,"DateFrom":null,"DateTo":null,"OrderBy":"incoming_date_ts desc","Page":1,"Sides":[{"Name":"ДИРЕКЦИЯ...","ShortName":"ТПП ...","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","Address":"169300, РЕСП...","IsUnique":false,"IsOriginal":true,"IsBranch":true},{"Name":"ДИРЕКЦИЯ ...","ShortName":"ТПП ...","Inn":"1106014140","Ogrn":"1021100895760","Okpo":"3314561","IsUnique":false,"OrganizationId":0,"Address":"169300, РЕСП...","IsBranch":true}],"CaseTypeId":"","Courts":[]}
     __ = searchCasesGj4Side(session, side)
 
+    stor.commit('sides', sid)
+
     bankruptCases = getCasesFromBancruptCard(jsCardBankruptCard)
     print "collectSideData, num of cases in bankruptCard: %s" % len(bankruptCases)
     for x in bankruptCases:
@@ -203,8 +205,6 @@ def collectSideData(session, side, deep=2):
             collectSideData(session, bside, deep-1)
         except casebook.RequestError:
             print u"collectSideData, cardBusinessCard, error while processing current side"
-
-    stor.commit('sides', sid)
 
 
 def collectCaseData(session, case, deep=2):
@@ -264,6 +264,8 @@ def collectCaseData(session, case, deep=2):
         #~ карточка судьи GET http://casebook.ru/api/Card/Judge/96743d1a-ca39-4c2f-a5f2-94a2aa0c8b8f
         __ = cardJudge(session, judgeID)
 
+    stor.commit('cases', CaseId)
+
     caseSides = getSidesFromCase(jsCardCase)
     print "collectCaseData, num of case sides: %s" % len(caseSides)
     for x in caseSides:
@@ -274,8 +276,6 @@ def collectCaseData(session, case, deep=2):
             collectSideData(session, side, deep-1)
         except casebook.RequestError:
             print u"collectCaseData, cardCase, error while processing current side"
-
-    stor.commit('cases', CaseId)
 
 
 def cardJudge(session, judgeID):
