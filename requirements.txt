@@ -1,3 +1,3 @@
 -e git+https://github.com/vasnake/casebook.git@63b6afd0238527b1e0cf8573be9e74570b80a83a#egg=casebook-dev
-requests==2.2.1
+requests==2.20.0
 simplejson==3.3.3
